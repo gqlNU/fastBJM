@@ -12,7 +12,8 @@ devtools::install_github("gqlNU/fastBJM")
 library("fastBJM")
 ```
 
-The code below demonstrates the use of fastBJM to fit a simulated dataset with 5000 people (more detail to follow).
+##  An example (more detail to follow)
+The code below demonstrates the use of fastBJM to fit a simulated dataset with 5000 people.
 
 ```R
 #################################
