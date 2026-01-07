@@ -1,0 +1,25 @@
+Package: fastBJMdev
+Title: fastBJM: An efficient and scalable MCMC algorithm for fitting
+    Babyesian joint models of longitudinal and event history data
+Version: 0.0.0.9000
+Authors@R: 
+    person("Guangquan", "Li", , "guangquan.li@northumbria.ac.uk", role = c("aut", "cre"))
+Description: Joint models are computationally expensive to fit due to the
+    complex joint likelihood and the need to estimate a large number of
+    individual-level random effects. We propose fastBJM, an efficient and
+    scalable algorithm for fitting Bayesian joint models using Markov
+    chain Monte Carlo.
+License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
+    license
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.3
+Imports: 
+    abind,
+    emdbook,
+    fastDummies,
+    LaplacesDemon,
+    MASS,
+    mvnfast,
+    mvtnorm,
+    statmod
