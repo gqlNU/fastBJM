@@ -1,4 +1,4 @@
-Package: fastBJMdev
+Package: fastBJM
 Title: fastBJM: An efficient and scalable MCMC algorithm for fitting
     Babyesian joint models of longitudinal and event history data
 Version: 0.0.0.9000
