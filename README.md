@@ -18,7 +18,7 @@ This example illustrates the use of fastBJM to analyse a simulated dataset with 
 The example code below fits a joint model in which a linear growth curve model with random individual-specific intercepts and slopes is used for the longitudinal submodel. For the multistate submodel, the transition intensities are specified as functions of the effects from two (fixed-effect) covariates, $x_1$ (continuous) and $x_2$ (binary) and a linear association structure with the current value of the underlying longitudinal process. Expressing it mathematically, the intensity of a generic permissible transition from State $j$ to State $k$ for person $i$ is given by
 
 $$
-\lambda^{(jk)}_i(t)=\lambda^{(jk)}_0(t)\cdot \mbox{exp}\left\{\boldsymbol{X}_i\boldsymbol{\beta}^{(jk)} + a_1(u_i+d_i t)\right\}
+\lambda^{(jk)}_i(t)=\lambda^{(jk)}_0(t)\cdot e^{\boldsymbol{X}_i\boldsymbol{\beta}^{(jk)} + a_1(u_i+d_i t)}
 $$
 
 where $\boldsymbol{X}_i$ denotes the covariates and $u_i$ and $d_i$ are the intercept and slope. The code below specifies a piecewise constant model on the baseline intensity $\lambda^{(jk)}_0(t)$ with two age-intervals 50-70 and 70-150.
