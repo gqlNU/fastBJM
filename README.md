@@ -69,6 +69,7 @@ model_spec$include_fixed_effects <- !is.null(model_spec$X_spec)
 model_spec$update_RE_byperson <- TRUE #  update each person independently at the MH step
 model_spec$byperson <- TRUE
 
+model_spec$PID <- 'mergeid'  #  person ID that links the event history data to the longitudinal data
 
 ##   get data in
 dfile <- system.file("extdata", "simdata1.rds", package = "fastBJM")

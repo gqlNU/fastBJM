@@ -2,8 +2,8 @@
 prepare_fitdata <- function(dat, model_spec) {
     ##   add participant ID
     dd <- dat
-    dd$msm$mergeid <- paste0('p',dd$msm$mergeid)
-    dd$long$mergeid <- paste0('p',dd$long$mergeid)
+    dd$msm$mergeid <- paste0('p',dd$msm[[model_spec$PID]])
+    dd$long$mergeid <- paste0('p',dd$long[[model_spec$PID]])
     dat <- as.list(dd$msm)
     dat$long <- dd$long
     all_data <- dat
