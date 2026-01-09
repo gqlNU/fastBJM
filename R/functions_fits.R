@@ -9,13 +9,14 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
   sims.list <- setup_storage(current_pars)
   current_jpd <- log_posterior(current_pars, data)
 
-  ##   initiate progress bar
-  pb_freq <- ifelse(niters<10,1,10)  ##   how often to update pb
-  pb <- txtProgressBar(min=0, max=niters,initial=0,style=3)
-
+  ##   initial on screen display
   t1 <- Sys.time()
   msg <- paste0(' ** fitting started at ',t1)
   print(msg)
+  print(' ')
+  ##   initiate progress bar
+  pb_freq <- ifelse(niters<10,1,10)  ##   how often to update pb
+  pb <- txtProgressBar(min=0, max=niters, initial=0, style=3)
 
   for (iter in 1:niters) {
       ##-##################################################
@@ -188,7 +189,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
   t2 <- Sys.time()
   ddt <- t2-t1
   msg1 <- paste0(' ** fitting ended at ',t2)
-  msg2 <- paste0(' == Fitting time: ',round(ddt,digits=1),' ',attr(ddt,'units'))
+  msg2 <- paste0(' == Fitting time: ',round(ddt,digits=2),' ',attr(ddt,'units'))
   print(msg1)
   print(msg2)
   print(' ')
