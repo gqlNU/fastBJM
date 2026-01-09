@@ -245,6 +245,7 @@ dd <- readRDS(dfile)
 
 To understand the data structure, we take person 4054 as an example.
 ```R
+#| code-copy: false
 ######  the event history data
 > dd$msm[which(dd$msm$mergeid==4054),]
          start     stop from to status age_entry    x1 x2 mergeid
@@ -258,6 +259,7 @@ This person entered the study at age 64, was diagnosed with hypertension at age 
 
 The longitudinal measurements for this person are stored under the column `y` in `dd$long`. The variable `age` shows the age at which each measurement was obtained:
 ```R
+#| code-copy: false
 ######  the longitudinal measurements
 > dd$long[which(dd$long$mergeid==4054),]
       mergeid age          y age_entry
