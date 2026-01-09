@@ -13,6 +13,10 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
   pb_freq <- 20  ##   update pb 20 times on screen
   pb <- txtProgressBar(min=0, max=niters,initial=0,style=3)
 
+  t1 <- Sys.time()
+  msg <- paste0(' ** fitting started at ',t1)
+  print(msg)
+
   for (iter in 1:niters) {
       ##-##################################################
       ##  age-specific baselines
@@ -180,7 +184,14 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
   }  ##   next iteration
   ##   close progress bar
   close(pb)
-
+  ##   on screen update
+  t2 <- Sys.time()
+  ddt <- t2-t1
+  msg1 <- paste0(' ** fitting ended at ',t2)
+  msg2 <- paste0(' == Fitting time: ',round(ddt,digits=1),' ',attr(ddt,'units'))
+  print(msg1)
+  print(msg2)
+  print(' ')
   return(sims.list)
 }
 
