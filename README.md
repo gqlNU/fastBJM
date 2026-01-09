@@ -27,24 +27,26 @@ where $\boldsymbol{X}_i$ denotes the covariates and $u_i$ and $d_i$ are the inte
 
 ```R
 #################################
-##   define permissible transitions
+##   user inputs
 #################################
+##   define permissible transitions
 ats <- c('12','13','15','24','25','34','35','45')
 names(ats) <- ats
-
-
 model_spec <- list()
+##   person ID that links the event history data to the longitudinal data
+model_spec$PID <- 'mergeid'
+##   the set of transitions to be included in the analysis
 model_spec$allowable_transitions <- model_spec$transitions_to_analyse <- ats
-## --- name of the longitudinal variable in the dataset 
+## --- name of the longitudinal variable in the dataset
 model_spec$which_longvar <- 'y'
 ## --- association structure:
 ##   aps <- c('a_1','a_2'): a quadratic function of the current value with the transition intensities
 ##   aps <- c('a_1')      : a linear function of the current value with the transition intensities
-##   aps <- NULL          : the two submodels are not linked
+##   aps <- NULL          : for a separate analysis of the two submodels
 model_spec$aps <- c('a_1','a_2')
 model_spec$a1p <- ats
 model_spec$a2p <- ats
-## --- fixed effects
+## --- fixed effects on the transition intensities
 ##   X_spec[,1]: names of the columns to be included as fixed effects
 ##   X_spec[,2]: types of covariates (cat=binary/categorical and cnt=continuous)
 ##   set model_spec$X_spec <- NULL if no fixed effect included
@@ -60,19 +62,12 @@ model_spec$beta_by_transitions <- list(x1=ats,
 ##   the setting below corresponds to two age intervals, [50, 70) and [70,150]
 model_spec$age_range <- c(50,150)
 model_spec$age_cuts <- c(70)
-##   other settings - leave as default
-model_spec$nQs <- 15
-model_spec$lmm_correlated_random_effects <- TRUE
-model_spec$standardise_y <- T
-model_spec$standardise_cnt_x <- T
-model_spec$weibull_baseline <- FALSE
-model_spec$joint <- !is.null(model_spec$which_longvar)
-model_spec$include_fixed_effects <- !is.null(model_spec$X_spec)
-if (!model_spec$include_fixed_effects) model_spec$beta_by_transitions <- NULL
-model_spec$update_RE_byperson <- TRUE #  update each person independently at the MH step
-model_spec$byperson <- TRUE
+#################################
+##   end user input
+#################################
 
-model_spec$PID <- 'mergeid'  #  person ID that links the event history data to the longitudinal data
+##   specify other specifications (using defaults)
+model_spec <- tidy_model_spec(model_spec)
 
 ##   get data in
 dfile <- system.file("extdata", "simdata1.rds", package = "fastBJM")
@@ -87,7 +82,7 @@ params <- get_parameters(fitdata, model_spec)
 inits <- initialise_parameters(fitdata, params, model_spec, update_setting)
 
 ##   carry out MCMC update
-niters <- 2
+niters <- 10
 sims.list <- mcmc_update(fitdata, inits, niters, model_spec, update_setting)
 
 ```

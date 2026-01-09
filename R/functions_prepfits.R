@@ -1,4 +1,21 @@
 #' @export
+tidy_model_spec <- function(model_spec) {
+    ##   specify other specifications (using defaults)
+    out <- model_spec
+    out$joint <- !is.null(out$which_longvar)
+    out$nQs <- ifelse(out$joint, 15, 1)  #  number of quadrature points
+    out$lmm_correlated_random_effects <- ifelse(out$joint, T, F)  #  include corr. REs in longitudinal
+    out$standardise_y <- ifelse(out$joint, T, F)  #  standardise longitudinal measurements
+    out$weibull_baseline <- FALSE  #  Weibull baseline (not currently available)
+    out$include_fixed_effects <- !is.null(out$X_spec)
+    if (!out$include_fixed_effects) out$beta_by_transitions <- NULL
+    out$update_RE_byperson <- TRUE #  update each person independently at the MH step
+    out$byperson <- TRUE
+    return(out)
+}
+
+
+#' @export
 gather_update_setting <- function(dat, model_spec) {
   out <- list()
   ##   update baseline hazards?

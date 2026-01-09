@@ -10,7 +10,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
   current_jpd <- log_posterior(current_pars, data)
 
   ##   initiate progress bar
-  pb_freq <- 20  ##   update pb 20 times on screen
+  pb_freq <- ifelse(niters<10,1,10)  ##   how often to update pb
   pb <- txtProgressBar(min=0, max=niters,initial=0,style=3)
 
   t1 <- Sys.time()
