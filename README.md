@@ -94,6 +94,7 @@ sims.list <- mcmc_update(fitdata, inits, niters, model_spec, update_setting)
 </details>
 
 
+
 ## Example 2: Fitting a multistate only model
 
 fastBJM can be used to fit a multistate-only model with a piecewise constant model on the transition intensities. This is done by not specifying a longitudinal variable in the model specification, namely, by setting `model_spec$which_longvar <- NULL`. Fixed effects can still be included on all (or some) of the transition intensities.
@@ -232,3 +233,37 @@ for (which_jk in model_spec$transitions_to_analyse) {
 }
 ```
 </details>
+
+
+## On data structure:
+The data required from the user is a list that consists of two dataframes, `msm` and `long`, containing the event history data and the longitudinal measurements, respectively. The package contains a simulated dataset that illustrates the contents of the data list:
+
+```R
+dfile <- system.file("extdata", "simdata1.rds", package = "fastBJM")
+dd <- readRDS(dfile)
+```
+
+To understand the data structure, we take person 4054 as an example.
+```R
+######  the event history data
+> dd$msm[which(dd$msm$mergeid==4054),]
+         start     stop from to status age_entry    x1 x2 mergeid
+13391 64.00000 65.09222    1  2      1        64 -0.65  1    4054
+23391 64.00000 65.09222    1  3      0        64 -0.65  1    4054
+33391 64.00000 65.09222    1  5      0        64 -0.65  1    4054
+41422 65.09222 73.00000    2  4      0        64 -0.65  1    4054
+51422 65.09222 73.00000    2  5      0        64 -0.65  1    4054
+```
+This person entered the study at age 64, was diagnosed with hypertension at age 65.09 then exited at age 73 without experiencing any other health outcomes that are of interest in the analysis. Therefore, the first three rows of the `msm` data tell us that out of the three possible transitions from state 1, namely (12), (13) and (15), only the (12) transition was observed (thus with `status` being 1 on that row) while the other two with status set at 0. The subsequent two rows in `msm` tell us that this person did not experience the (24) or the (25) transition and exited at age 73. The two columns, `x1` and `x2`, are the two time-invariant covariates that we have for the individual. 
+
+The longitudinal measurements for this person are stored under the column `y` in `dd$long`. The variable `age` shows the age at which each measurement was obtained:
+```R
+######  the longitudinal measurements
+> dd$long[which(dd$long$mergeid==4054),]
+      mergeid age          y age_entry
+13297    4054  64 -0.8176417        64
+23297    4054  66 -0.2077799        64
+33176    4054  68 -0.3878730        64
+42848    4054  70 -1.3820206        64
+52005    4054  72 -1.0251801        64
+```
