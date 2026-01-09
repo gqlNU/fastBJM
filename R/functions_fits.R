@@ -12,8 +12,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
   ##   initial on screen display
   t1 <- Sys.time()
   msg <- paste0(' ** fitting started at ',t1)
-  print(msg)
-  print(' ')
+  cat(msg)
   ##   initiate progress bar
   pb_freq <- ifelse(niters<10,1,10)  ##   how often to update pb
   pb <- txtProgressBar(min=0, max=niters, initial=0, style=3)
@@ -190,9 +189,8 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
   ddt <- t2-t1
   msg1 <- paste0(' ** fitting ended at ',t2)
   msg2 <- paste0(' == Fitting time: ',round(ddt,digits=2),' ',attr(ddt,'units'))
-  print(msg1)
-  print(msg2)
-  print(' ')
+  cat(msg1)
+  cat(msg2)
   return(sims.list)
 }
 
