@@ -3,9 +3,6 @@ gather_update_setting <- function(dat, model_spec) {
   out <- list()
   ##   update baseline hazards?
   out$update_h0 <- T
-  ##   update fixed effect(s)?
-  out$include_fixed_effects <- model_spec$include_fixed_effects
-  out$update_fixed_effects <- out$include_fixed_effects
   ##   update association parameter(s)?
   out$update_association <- T
   out$update_lmm_random_effects <- T
@@ -15,20 +12,25 @@ gather_update_setting <- function(dat, model_spec) {
     out$update_lmm_random_effects <- F
     out$update_lmm_data_sd <- F
   }
+  ##   update fixed effect(s)?
+  out$include_fixed_effects <- model_spec$include_fixed_effects
+  out$update_fixed_effects <- out$include_fixed_effects
   ##   which fixed effects to be updated during MCMC
-  bb <- NULL
-  msb <- model_spec$beta_by_country
-  for (ix in 1:length(model_spec$beta_by_country)) {
-    xn <- names(msb)[ix]
-    xtype <- dat$X_spec$type[which(dat$X_spec$xn==xn)]
-    if (xtype=='cnt') {
-        ##   a continuoue-valued covariate
-        tmp <- paste0(xn,'_',msb[[ix]])
-    } else {
-        ##   a categorical covariate
-        tmp <- sapply(msb[[ix]],function(xx) {paste0(dat$XVars[grep(xn,dat$XVars)],'_',xx)})
-    }
-    bb <- c(bb,tmp)
+  if (model_spec$include_fixed_effects) {
+      bb <- NULL
+      msb <- model_spec$beta_by_transitions
+      for (ix in 1:length(msb)) {
+        xn <- names(msb)[ix]
+        xtype <- dat$X_spec$type[which(dat$X_spec$xn==xn)]
+        if (xtype=='cnt') {
+            ##   a continuoue-valued covariate
+            tmp <- paste0(xn,'_',msb[[ix]])
+        } else {
+            ##   a categorical covariate
+            tmp <- sapply(msb[[ix]],function(xx) {paste0(dat$XVars[grep(xn,dat$XVars)],'_',xx)})
+        }
+        bb <- c(bb,tmp)
+      }
   }
   out$beta_to_update <- bb
 
@@ -58,7 +60,7 @@ get_parameters <- function(dat, model_spec) {
     ##   fixed effects
     ##########################
     if (model_spec$include_fixed_effects) {
-        bc <- model_spec$beta_by_country
+        bc <- model_spec$beta_by_transitions
         nms <- NULL
         for (ibc in 1:length(bc)) {
             xn <- names(bc)[ibc]

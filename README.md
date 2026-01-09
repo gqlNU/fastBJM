@@ -52,8 +52,9 @@ model_spec$X_spec <- matrix(c('x1','cnt',
 ## --- which transition intensities are specified as a function of the fixed effects
 ##   e.g. x1=ats means x1 affects all permissible transitions and each transition has its own effect estimate
 ##   e.g. x1=c('12','15') means x1 only affects the 12 and 15 transitions
-model_spec$beta_by_country <- list(x1=ats,
-   	                               x2=ats)
+##   beta_by_transitions will be automatically set to NULL if model_spec$X_spec is NULL (i.e. no fixed effect)
+model_spec$beta_by_transitions <- list(x1=ats,
+   	                                   x2=ats)
 ## --- definition of the age intervals for the baseline intensities
 ##   the setting below corresponds to two age intervals, [50, 70) and [70,150]
 model_spec$age_range <- c(50,150)
@@ -66,6 +67,7 @@ model_spec$standardise_cnt_x <- T
 model_spec$weibull_baseline <- FALSE
 model_spec$joint <- !is.null(model_spec$which_longvar)
 model_spec$include_fixed_effects <- !is.null(model_spec$X_spec)
+if (!model_spec$include_fixed_effects) model_spec$beta_by_transitions <- NULL
 model_spec$update_RE_byperson <- TRUE #  update each person independently at the MH step
 model_spec$byperson <- TRUE
 
