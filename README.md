@@ -244,7 +244,7 @@ dd <- readRDS(dfile)
 ```
 
 To understand the data structure, we take person 4054 as an example.
-```{.r code-copy=false}
+```r
 ######  the event history data
 > dd$msm[which(dd$msm$mergeid==4054),]
          start     stop from to status age_entry    x1 x2 mergeid
@@ -257,7 +257,7 @@ To understand the data structure, we take person 4054 as an example.
 This person entered the study at age 64, was diagnosed with hypertension at age 65.09 then exited at age 73 without experiencing any other health outcomes that are of interest in the analysis. Therefore, the first three rows of the `msm` data tell us that out of the three possible transitions from state 1, namely (12), (13) and (15), only the (12) transition was observed (thus with `status` being 1 on that row) while the other two with status set at 0. The subsequent two rows in `msm` tell us that this person did not experience the (24) or the (25) transition and exited at age 73. The two columns, `x1` and `x2`, are the two time-invariant covariates that we have for the individual. This is the same structure as described on p. 6 in [de Wreede et al. (2011)](https://www.jstatsoft.org/article/view/v038i07).
 
 The longitudinal measurements for this person are stored under the column `y` in `dd$long`. The variable `age` shows the age at which each measurement was obtained:
-```{.r code-copy=false}
+```r
 ######  the longitudinal measurements
 > dd$long[which(dd$long$mergeid==4054),]
       mergeid age          y age_entry
