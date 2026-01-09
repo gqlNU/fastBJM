@@ -9,10 +9,11 @@ The preprint of the paper that details the algorithm will be made avaiable on [R
 
 ```R
 devtools::install_github("gqlNU/fastBJM")
-library("fastBJM")
 ```
 
-##  An example
+<details>
+<summary> Fitting a joint model: an example </summary>
+
 This example illustrates the use of fastBJM to analyse a simulated dataset with the longitudinal and event history data from 5000 people. The multistate submodel is given by the state diagram below. There are five health states (1 - 5) and eight permissible transitions $\Delta=\{(12), (13), (15), (24), (35), (34), (35), (45)\}$. For each person, the first longitudinal measurement is taken at the start of the follow-up and subsequent measurements are taken every 2.5 years until the person exits the study due to either (non-informative) drop-out or death (which is State 5 in the multistate model).
 
 <img width="601" height="467" alt="Screenshot 2026-01-08 at 15 17 29" src="https://github.com/user-attachments/assets/48cfe589-99f5-4913-9102-b1ef2639257a" />
@@ -26,6 +27,8 @@ $$
 where $\boldsymbol{X}_i$ denotes the covariates and $u_i$ and $d_i$ are the intercept and slope. The code below specifies a piecewise constant model on the baseline intensity $\lambda^{(jk)}_0(t)$ with two age-intervals 50-70 and 70-150.
 
 ```R
+library("fastBJM")
+
 #################################
 ##   user inputs
 #################################
@@ -86,4 +89,4 @@ niters <- 10
 sims.list <- mcmc_update(fitdata, inits, niters, model_spec, update_setting)
 
 ```
-
+</details>
