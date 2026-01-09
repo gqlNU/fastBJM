@@ -176,7 +176,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
           current_jpd <- log_posterior(current_pars,fitdata)
       }
       ##   update progress bar
-      if (iter%%(niters/pb_freq)==0) setTxtProgressBar(pb, iiter)
+      if (iter%%(niters/pb_freq)==0) setTxtProgressBar(pb, iter)
   }  ##   next iteration
   ##   close progress bar
   close(pb)
