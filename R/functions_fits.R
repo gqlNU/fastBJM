@@ -9,6 +9,9 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
   sims.list <- setup_storage(current_pars)
   current_jpd <- log_posterior(current_pars, data)
 
+  ##   initiate progress bar
+  pb <- txtProgressBar(min=0, max=niters,initial=0)
+
   for (iter in 1:niters) {
       ##-##################################################
       ##  age-specific baselines
@@ -171,7 +174,12 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
           ##   calculate the joint posterior at the updated values
           current_jpd <- log_posterior(current_pars,fitdata)
       }
+      ##   update progress bar
+      if (iter%%(niters/pb_freq)==0) setTxtProgressBar(pb, iiter)
   }  ##   next iteration
+  ##   close progress bar
+  close(pb)
+  
   return(sims.list)
 }
 

@@ -47,6 +47,7 @@ model_spec$a2p <- ats
 ## --- fixed effects
 ##   X_spec[,1]: names of the columns to be included as fixed effects
 ##   X_spec[,2]: types of covariates (cat=binary/categorical and cnt=continuous)
+##   set model_spec$X_spec <- NULL if no fixed effect included
 model_spec$X_spec <- matrix(c('x1','cnt',
                               'x2','cat'),byrow=T,ncol=2)
 ## --- which transition intensities are specified as a function of the fixed effects
