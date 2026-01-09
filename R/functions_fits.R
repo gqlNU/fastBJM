@@ -10,7 +10,8 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
   current_jpd <- log_posterior(current_pars, data)
 
   ##   initiate progress bar
-  pb <- txtProgressBar(min=0, max=niters,initial=0)
+  pb_freq <- 20  ##   update pb 20 times on screen
+  pb <- txtProgressBar(min=0, max=niters,initial=0,style=3)
 
   for (iter in 1:niters) {
       ##-##################################################
@@ -179,7 +180,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
   }  ##   next iteration
   ##   close progress bar
   close(pb)
-  
+
   return(sims.list)
 }
 
