@@ -16,8 +16,8 @@ gather_update_setting <- function(dat, model_spec) {
   out$include_fixed_effects <- model_spec$include_fixed_effects
   out$update_fixed_effects <- out$include_fixed_effects
   ##   which fixed effects to be updated during MCMC
+  bb <- NULL
   if (model_spec$include_fixed_effects) {
-      bb <- NULL
       msb <- model_spec$beta_by_transitions
       for (ix in 1:length(msb)) {
         xn <- names(msb)[ix]
