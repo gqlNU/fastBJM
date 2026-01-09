@@ -25,7 +25,7 @@ prepare_fitdata <- function(dat, model_spec) {
         out <- all_data
     }
     ##   prepare fixed effects if included
-    if (!is.null(model_spec$X_spec)) out <- prepare_X(out, model_spec)
+    if (model_spec$include_fixed_effects) out <- prepare_X(out, model_spec)
     ##   prepare age-related variables
     out <- prepare_age(out, model_spec)
     ##   prepare age-related variables
@@ -39,7 +39,7 @@ prepare_fitdata <- function(dat, model_spec) {
     out$subject <- unique(out$mergeid)
     ##   structure and summarise longitudinal measurements
     which_longvar <- model_spec$which_longvar
-    if (!is.null(which_longvar)) {
+    if (model_spec$joint) {
         out$long <- format_longitudinal(out, model_spec)
         out$sumlong <- summarise_longitudinal_measures(out)
     }

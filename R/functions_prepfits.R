@@ -9,6 +9,7 @@ tidy_model_spec <- function(model_spec) {
     out$weibull_baseline <- FALSE  #  Weibull baseline (not currently available)
     out$include_fixed_effects <- !is.null(out$X_spec)
     if (!out$include_fixed_effects) out$beta_by_transitions <- NULL
+    out$standardise_cnt_x <- TRUE  #  standardise continuous fixed effects (if any)
     out$update_RE_byperson <- TRUE #  update each person independently at the MH step
     out$byperson <- TRUE
     return(out)
