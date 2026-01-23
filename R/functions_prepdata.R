@@ -135,6 +135,12 @@ check_X_spec <- function(dat) {
 ###  function to construct the X matrix
 #######################################################
 #' @export
+prep_catX <- function(x, remove_first_dummy) {
+    out <- fastDummies::dummy_cols(x,remove_first_dummy=remove_first_dummy)
+    out <- as.matrix(xc[which(names(xc)!='.data')])
+    return(out)    
+}
+#' @export
 gather_X <- function(dat,standardise_cnt_x=T) {
   Xs <- dat$X_spec
   out <- out_colnames <- NULL
@@ -149,8 +155,7 @@ gather_X <- function(dat,standardise_cnt_x=T) {
         if (tp=='cat') {
             #  a categorical one
             if (length(unique(x))>10) print(paste0('Warning: there are more than 10 levels in the categorical covariate ',this_x))
-            xc <- fastDummies::dummy_cols(x,remove_first_dummy=TRUE)
-            xc <- as.matrix(xc[which(names(xc)!='.data')])
+            xc <- prep_catX(x,remove_first_dummy = TRUE)
             this_xc <- paste0(this_x,1:ncol(xc))
             out <- cbind(out,xc)
             out_colnames <- c(out_colnames,this_xc)
