@@ -136,7 +136,7 @@ check_X_spec <- function(dat) {
 #######################################################
 #' @export
 prep_catX <- function(x, remove_first_dummy) {
-    out <- fastDummies::dummy_cols(x,remove_first_dummy=remove_first_dummy)
+    xc <- fastDummies::dummy_cols(x,remove_first_dummy=remove_first_dummy)
     out <- as.matrix(xc[which(names(xc)!='.data')])
     return(out)    
 }
