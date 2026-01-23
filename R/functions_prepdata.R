@@ -266,7 +266,7 @@ prepare_indices <- function(dat) {
     out$ncases_by_jkg[names(ts)] <- ts[names(ts)]
 
     ##   case numbers by transition-country
-    out$all_jkc_index <- c(sapply(ats,function(k){paste0(k,'c',1:out$nctys)}))
+    out$all_jkc_index <- c(sapply(ats,function(k){paste0('cty',1:out$nctys,'_',k)}))
     out$ncases_by_jkc <- rep(0,length(out$all_jkc_index))
     names(out$ncases_by_jkc) <- out$all_jkc_index
     ts <- tapply(out$status,out$jkc_index,sum)
