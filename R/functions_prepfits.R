@@ -127,10 +127,10 @@ get_parameters <- function(dat, model_spec) {
     ####################################################
     if (model_spec$include_msm_random) {
         ats <- dat$transitions_to_analyse
-        params[['w']] <- rep(0,dat$nctys*dat$length(ats))
+        params[['kappa']] <- rep(0,dat$nctys*dat$length(ats))
         nms <- NULL
-        for (icty in 1:dat$nctys) nms <- c(nms,paste0('w',icty,'_',ats))
-        names(params[['w']]) <- nms
+        for (icty in 1:dat$nctys) nms <- c(nms,paste0(icty,'_',ats))
+        names(params[['kappa']]) <- nms
     }
     return(params)
 }

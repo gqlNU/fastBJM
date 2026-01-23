@@ -252,7 +252,7 @@ prepare_indices <- function(dat) {
     ##   index of transition
     out$jk_index <- paste0(out$from,out$to)
     ##   index of transition-country
-    out$jkc_index <- paste0('cty',out$cty_id,'_',out$jk_index)
+    out$jkc_index <- paste0(out$cty_id,'_',out$jk_index)
     ##   index of transition-age
     out$jkg_index <- paste0(out$jk_index,'g',out[['age_gp_calc']])
     ##   index of transition-age_country
@@ -266,7 +266,7 @@ prepare_indices <- function(dat) {
     out$ncases_by_jkg[names(ts)] <- ts[names(ts)]
 
     ##   case numbers by transition-country
-    out$all_jkc_index <- c(sapply(ats,function(k){paste0('cty',1:out$nctys,'_',k)}))
+    out$all_jkc_index <- c(sapply(ats,function(k){paste0(1:out$nctys,'_',k)}))
     out$ncases_by_jkc <- rep(0,length(out$all_jkc_index))
     names(out$ncases_by_jkc) <- out$all_jkc_index
     ts <- tapply(out$status,out$jkc_index,sum)

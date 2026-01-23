@@ -559,3 +559,72 @@ inv2x2matrix_vectorised <- function(vm) {
     out <- d*out
     return(out)
 }
+
+#' @export
+same_elements <- function(x, eps=0.001) {
+  out <- T
+  d <- abs((x-x[1])/x[1])
+  if (any(d>eps)) out <- F
+  return(out)
+}
+
+#' @export
+obtain_IGMRF_Q <- function(n, s, vs=1e-10) {
+#  on entry: 
+#     n  = number of random effects
+#     s  = (conditional) standard derivation
+#     vs = a very small value assigned to the off-diagonals of the identity matrix
+#          (default value = 1e-10)
+    A <- matrix(vs,nrow=n,ncol=n)
+    tau <- 1/s^2
+    diag(A) <- tau
+    E <- eigen(A)
+    V <- E$vectors
+    l <- E$values[2:n]
+    tildeLambda <- diag(c(0,l))
+    tildeQ <- V%*%tildeLambda%*%t(V)
+    ##   quality control
+    if (!same_elements(V[,1])) stop('not all the elements in e1 are the same')
+    if (!same_elements(l)) {
+        stop('not all eigenvalues are the same')
+    } else {
+        if (!same_elements(c(tau,l))) stop('the eigenvalues should be the same as the precision')
+    }
+    out <- list(tildeLambda=tildeLambda, tildeQ=tildeQ, l=l[1], V=V)
+    return(out)
+}
+
+#' @export
+f_kappa_approximated <- function(bx,bx0,params,dat,which_par='') {
+  which_jk <- sub('kappa','',which_par)
+  QD <- dat$Q
+  pm0 <- params
+  nms <- names(bx0)
+  pm0[['kappa']][nms] <- bx0[nms]
+  status <- dat$status
+  dev1 <- dev2 <- rep(0,length(bx0))
+  names(dev1) <- names(dev2) <- nms
+
+  hq <- compute_haz(pm0,dat,at_quadrature = T,include_quadweights = T)
+  hr <- as.numeric(tapply(hq,dat$Q$row_id,sum))
+  ##   go through the random effects for each transition
+  dfdw2 <- array(0, dat$nctys)
+  for (icty in dat$nctys) {
+    dfdw2[icty] <- sum(dat$hr[which(dat$jkc_index==paste0(icty,'_',which_jk))])
+  }
+  tildeQ <- obtain_IGMRF_Q(dat$nctys,1/sqrt(pm0[['sd_kappa']]))$tildeQ
+
+  Q <- diag(dfdw2) + tildeQ
+  ncases <- dat[['ncases_by_jkc']][paste0(1:dat$nctys,'_',which_jk)]
+  m <- ncases - dfdw2 - dfdw*pm0[['kappa']][paste0(1:dat$nctys,'_',which_jk)]
+  m <- matrix(m,ncol=1)
+
+  iQ <- MASS::ginv(Q)
+  mu <- iQ%*%m  
+  mu_star <- mu - iQ%*%t(A)%*%ginv(A%*%iQ%*%t(A))%*%(A%*%mu-E)
+  s_star <- ginv(Q) - iQ%*%t(A)%*%ginv(A%*%iQ%*%t(A))%*%(A%*%iQ)
+
+  eta_next <- mu_star
+  out <- list(eta_next=eta_next,m=mu_star,V=s_star,Q=Q)
+  return(out)
+}

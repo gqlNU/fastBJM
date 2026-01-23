@@ -121,7 +121,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
           }
           sims.list[[pp]] <- rbind(sims.list[[pp]],current_pars[[pp]])
       }
-    ##-################################
+      ##-################################
       ##   update association parameters
       ##-################################
       if (update_setting$update_association) {
@@ -499,13 +499,14 @@ update_baseline <- function(params, dat, prior=c(0.01,0.01), reference_ids=NULL)
 #######################################################
 #' @export
 identify_approx_function <- function(which_par) {
-  if (length(grep('a_',which_par))>0) out <- f_association_approximated
+    if (length(grep('a_',which_par))>0) out <- f_association_approximated
     if (which_par=='beta') out <- f_beta_approximated
     if (which_par=='intercept' | which_par=='slope') out <- f_lmm_random_effects_approximated
     if (which_par=='eta') out <- f_eta_approximated
     if (which_par=='kappa') out <- f_kappa_approximated
     ##   added 12Jun2025
     if (which_par=='lmm_corr_random_effects') out <- f_lmm_corr_random_effects_approximated
+    if (which_par=='kappa') out <- f_kappa_approximated
     return(out)
 }
     
@@ -684,19 +685,34 @@ gmrf_sampling <- function(which_par, params, dat) {
     } else {
         start_x0 <- params[[pp]]
     }
+    is_cty_random <- FALSE
+    if (length(grep('kappa',which_par))>0) {
+        #  random effects on an MSM transition
+        pp <- which_par
+        start_x0 <- NULL
+        is_cty_random <- TRUE
+    }
+
     ##   find the modes via Newton-Raphson
     opt_x <- auto_mode_finder(which_par, start_x0, params, dat)
     ##   sample based on the modes
-  if (which_par!='lmm_corr_random_effects') {
-    xs <- sample_at_opt_mode_univariate(opt_x)
-    names(xs$x) <- names(start_x0)
-    out <- list(mean=xs$mean,sd=xs$sd,x=xs$x)
-  } else {
-    v_check <- check_positive_definiteness(opt_x$V)  ##  check positive definiteness
-    if (!is.null(v_check$msg)) report_problems(v_check, dat)
-    xs <- sample_at_opt_mode_multivariate_faster(opt_x)
-    out <- list(mean=xs$mean,V=xs$V,x=xs$x)
-  }
+    if (which_par!='lmm_corr_random_effects') {
+      if (!is_cty_random) {
+        xs <- sample_at_opt_mode_univariate(opt_x)
+        names(xs$x) <- names(start_x0)
+        out <- list(mean=xs$mean,sd=xs$sd,x=xs$x)
+      } else {
+        v_check <- check_positive_definiteness(opt_x$V)  ##  check positive definiteness
+        if (!is.null(v_check$msg)) report_problems(v_check, dat)
+        xs <- sample_at_opt_mode_multivariate_faster(opt_x)
+        out <- list(mean=xs$mean,V=xs$V,x=xs$x)
+      }
+    } else {
+      v_check <- check_positive_definiteness(opt_x$V)  ##  check positive definiteness
+      if (!is.null(v_check$msg)) report_problems(v_check, dat)
+      xs <- sample_at_opt_mode_multivariate_faster(opt_x)
+      out <- list(mean=xs$mean,V=xs$V,x=xs$x)
+    }
     return(out)
 }
 
