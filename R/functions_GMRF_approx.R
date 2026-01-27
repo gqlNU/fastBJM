@@ -531,7 +531,7 @@ f_lmm_corr_random_effects_approximated <- function(bx,bx0,params,dat,which_par='
     		##   remove contribution from the MSM data 
     		##   when constructing the proposal distribution
     		Q[ii,,] <- Q_D[ii,,] + Q_y[ii,,]
-    		V[ii,,] <- ginv(Q[ii,,])
+    		V[ii,,] <- MASS::ginv(Q[ii,,])
     		m[1,ii] <- m_D[ii,1] + m_y[ii,1]
     		m[2,ii] <- m_D[ii,2] + m_y[ii,2]
     	}
@@ -621,10 +621,38 @@ f_kappa_approximated <- function(bx,bx0,params,dat,which_par='') {
 
   iQ <- MASS::ginv(Q)
   mu <- iQ%*%m  
-  mu_star <- mu - iQ%*%t(A)%*%ginv(A%*%iQ%*%t(A))%*%(A%*%mu-E)
-  s_star <- ginv(Q) - iQ%*%t(A)%*%ginv(A%*%iQ%*%t(A))%*%(A%*%iQ)
+  mu_star <- mu - iQ%*%t(A)%*%MASS::ginv(A%*%iQ%*%t(A))%*%(A%*%mu-E)
+  s_star <- iQ - iQ%*%t(A)%*%MASS::ginv(A%*%iQ%*%t(A))%*%(A%*%iQ)
 
   eta_next <- mu_star
   out <- list(eta_next=eta_next,m=mu_star,V=s_star,Q=Q)
   return(out)
+}
+
+#' @export
+logden_exchangeable_s2z <- function(x,prec) {
+  n <- length(x)
+  A <- matrix(1,ncol=n,nrow=1)
+  E <- 0  #  sum to 0 constraint
+  tau <- prec
+  Q <- tau * diag(n)
+  mu <- matrix(0,nrow=n,ncol=1)
+
+  iQ <- MASS::ginv(Q)
+  mu_star <- mu - iQ%*%t(A)%*%MASS::ginv(A%*%iQ%*%t(A))%*%(A%*%mu-E)
+  s_star <- iQ - iQ%*%t(A)%*%MASS::ginv(A%*%iQ%*%t(A))%*%(A%*%iQ)
+
+  ##   log density at xx
+  xx <- matrix(x,nrow=n)
+  ED <- eigen(s_star)
+  va <- ED$values
+  vas <- va
+  eps <- 1e-10
+  vas[which(va<eps)] <- 0
+  vas[which(va>eps)] <- 1/va[which(va>eps)]
+  ve <- ED$vectors
+  eps <- 1e-10
+  inv_s_star <- ve%*%diag(vas)%*%t(ve)
+  out <- -(n-1)/2*log(2*pi) - 1/2*sum(log(va[which(va>eps)])) - 1/2*t(xx-mu_star)%*%inv_s_star%*%(xx-mu_star)
+  return(as.numeric(out))
 }

@@ -126,11 +126,12 @@ get_parameters <- function(dat, model_spec) {
     ##   IID random effects on each MSM transition
     ####################################################
     if (model_spec$include_msm_random) {
-        ats <- dat$transitions_to_analyse
-        params[['kappa']] <- rep(0,dat$nctys*dat$length(ats))
+        params[['kappa']] <- rep(0,dat$nctys*length(ats))
         nms <- NULL
         for (icty in 1:dat$nctys) nms <- c(nms,paste0(icty,'_',ats))
         names(params[['kappa']]) <- nms
+        #   random effect SD common to all transitions
+        params[['sd_kappa']] <- 1
     }
     return(params)
 }

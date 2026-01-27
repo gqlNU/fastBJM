@@ -216,7 +216,7 @@ log_posterior <- function(params, dat) {
   #################################
   #   prior contributions
   #################################
-  prs <- rep(0,14)
+  prs <- rep(0,20)
   #  age-specific baselines
   prs[1] <- sum(dgamma(params[['l']],shape=0.01,rate=0.01,log=T))
   if (model_spec$weibull_baseline) prs[1] <- prs[1] + sum(dunif(exp(params[['logdel']]),0.00001,5,log=T))  # added on 15Oct2025
@@ -270,6 +270,18 @@ log_posterior <- function(params, dat) {
               prs[12] <- sum(dnorm(params[['d']],mean=params[['m_d']],sd=params[['sd_d']],log=T))
           }
       }
+  }
+  if (model_spec$include_msm_random) {
+    #  random effects for each MSM transition
+    tmp_prs <- 0
+    for (jk in ats) {
+      which_pars <- grep(paste0('_',jk),names(params[['kappa']]))
+      pm <- params[['kappa']][which_pars]
+      precision <- 1/params[['sd_kappa']]^2
+      tmp_prs <- tmp_prs + logden_exchangeable_s2z(pm,precision)
+    }
+    prs[20] <- tmp_prs
+    prs[19] <- dgamma(1/params[['sd_kappa']]^2,shape=0.01,rate=0.01,log=T)
   }
   out <- ll + sum(prs)
   if (byperson) out <- out + prs1 + prs2
@@ -346,6 +358,21 @@ compute_longitudinal_effects <- function(params, dat, at_quadrature, include_ass
 }
 
 #######################################################
+###  function to calculate the random effects on 
+###  MSM transitions on the log scale
+#######################################################
+#' @export
+compute_msm_random_effects <- function(params, dat, at_quadrature) {
+    ##   get the relevant data
+    dd <- dat
+    if (at_quadrature) dd <- dat$Q
+    mergeid <- dd$mergeid
+    jkc_index <- dd$jkc_index
+    out <- params[['kappa']][jkc_index]
+    return(out)
+}
+
+#######################################################
 ###  function to calculate the hazard ratios
 #######################################################
 #' @export
@@ -358,6 +385,8 @@ compute_RR <- function(params, dat, at_quadrature) {
   if (model_spec$include_fixed_effects) bX <- compute_fixed_effects(params, dat, at_quadrature)
   #  longitudinal
   if (model_spec$joint) aL <- compute_longitudinal_effects(params, dat, at_quadrature, include_association_par=T)
+  #  random effects on MSM transition
+  if (model_spec$include_msm_random) kappa <- compute_msm_random_effects(params, dat, at_quadrature)
   #  putting all together
   logRR <- bX + aL + eta + kappa
   #  return hazard ratios
@@ -506,7 +535,6 @@ identify_approx_function <- function(which_par) {
     if (which_par=='kappa') out <- f_kappa_approximated
     ##   added 12Jun2025
     if (which_par=='lmm_corr_random_effects') out <- f_lmm_corr_random_effects_approximated
-    if (which_par=='kappa') out <- f_kappa_approximated
     return(out)
 }
     
