@@ -312,48 +312,6 @@ f_eta_approximated <- function(bx,bx0,params,dat,which_par='') {
 }
 
 ########################################
-####  country-age random effects in MSM
-########################################
-#' @export
-f_kappa_approximated <- function(bx,bx0,params,dat,which_par='') {
-  pp <- 'kappa'
-  ats <- dat$transitions_to_analyse
-  QD <- dat$Q
-  pm0 <- params
-  nms <- names(bx0)
-  pm0[[pp]][nms] <- bx0[nms]
-  status <- dat$status
-  npms <- length(bx0)
-  dev1 <- dev2 <- rep(0,length(bx0))
-  names(dev1) <- names(dev2) <- nms
-
-  #  hazard at quadrature points
-  hq <- compute_haz(pm0,dat,at_quadrature = T,include_quadweights = T)
-  #  hazard for each row in the from-to data
-  hr <- as.numeric(tapply(hq,dat$Q$row_id,sum))
-  cty_age_gps <- c(sapply(1:dat$nGs,function(x){paste0('cty',1:dat$nctys,'_g',x)}))
-  for (k in ats) {
-    tv <- dat$trans_indicators[,k]
-    for (ix in cty_age_gps) {
-      pp <- sub('_',paste0('_',k),ix)
-      xt <- dat$cty_age_dummy[,ix]
-      #  first and second derivatives of the full conditionals calculated at bx0
-      dvll <- sum(status*tv*xt) - sum(hr*tv*xt)
-      dev1[pp] <- dvll - 1/100^2*bx0[pp]
-      dvll <- - sum(hr*tv*xt^2)
-      dev2[pp] <- dvll - 1/100^2
-    }
-  }
-  ##   added on 05Jun2025
-  ##   Newton-Raphson to find eta such that
-  ##   the first derivative is 0 (see p. 169 Rue and Held 2005)
-  eta_next <- bx0 - dev1/dev2
-  out <- list(eta_next=eta_next,dev1=dev1,dev2=dev2)
-  return(out)
-}
-
-
-########################################
 ####  correlated intercept and slope
 ####   added on 10Jun2025
 ####   ********************************
@@ -595,12 +553,12 @@ obtain_IGMRF_Q <- function(n, s, vs=1e-10) {
 }
 
 #' @export
-f_kappa_approximated <- function(bx,bx0,params,dat,which_par='') {
-  which_jk <- sub('kappa','',which_par)
+f_w_approximated <- function(bx,bx0,params,dat,which_par='') {
+  which_jk <- sub('w_','',which_par)
   QD <- dat$Q
   pm0 <- params
   nms <- names(bx0)
-  pm0[['kappa']][nms] <- bx0[nms]
+  pm0[['w']][nms] <- bx0[nms]
   status <- dat$status
   dev1 <- dev2 <- rep(0,length(bx0))
   names(dev1) <- names(dev2) <- nms
@@ -612,11 +570,11 @@ f_kappa_approximated <- function(bx,bx0,params,dat,which_par='') {
   for (icty in dat$nctys) {
     dfdw2[icty] <- sum(dat$hr[which(dat$jkc_index==paste0(icty,'_',which_jk))])
   }
-  tildeQ <- obtain_IGMRF_Q(dat$nctys,1/sqrt(pm0[['sd_kappa']]))$tildeQ
+  tildeQ <- obtain_IGMRF_Q(dat$nctys,1/sqrt(pm0[['sd_w']]))$tildeQ
 
   Q <- diag(dfdw2) + tildeQ
   ncases <- dat[['ncases_by_jkc']][paste0(1:dat$nctys,'_',which_jk)]
-  m <- ncases - dfdw2 - dfdw*pm0[['kappa']][paste0(1:dat$nctys,'_',which_jk)]
+  m <- ncases - dfdw2 - dfdw*pm0[['w']][paste0(1:dat$nctys,'_',which_jk)]
   m <- matrix(m,ncol=1)
 
   iQ <- MASS::ginv(Q)

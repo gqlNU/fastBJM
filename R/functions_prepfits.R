@@ -126,12 +126,12 @@ get_parameters <- function(dat, model_spec) {
     ##   IID random effects on each MSM transition
     ####################################################
     if (model_spec$include_msm_random) {
-        params[['kappa']] <- rep(0,dat$nctys*length(ats))
+        params[['w']] <- rep(0,dat$nctys*length(ats))
         nms <- NULL
         for (icty in 1:dat$nctys) nms <- c(nms,paste0(icty,'_',ats))
-        names(params[['kappa']]) <- nms
+        names(params[['w']]) <- nms
         #   random effect SD common to all transitions
-        params[['sd_kappa']] <- 1
+        params[['sd_w']] <- 1
     }
     return(params)
 }
@@ -158,6 +158,10 @@ initialise_parameters <- function(dat, params, model_spec, update_setting) {
     out[['l']] <- update_baseline(out, dat, c(0.01,0.01))
     if (update_setting$update_fixed_effects)
         out[['beta']] <- gmrf_sampling('beta', out, dat)$x
+    if (model_spec$include_msm_random) {
+        which_par <- 'w_12'
+        gmrf_sampling(which_par, out, dat)
+    }
     return(out)
 }
 

@@ -275,13 +275,13 @@ log_posterior <- function(params, dat) {
     #  random effects for each MSM transition
     tmp_prs <- 0
     for (jk in ats) {
-      which_pars <- grep(paste0('_',jk),names(params[['kappa']]))
-      pm <- params[['kappa']][which_pars]
-      precision <- 1/params[['sd_kappa']]^2
+      which_pars <- grep(paste0('_',jk),names(params[['w']]))
+      pm <- params[['w']][which_pars]
+      precision <- 1/params[['sd_w']]^2
       tmp_prs <- tmp_prs + logden_exchangeable_s2z(pm,precision)
     }
     prs[20] <- tmp_prs
-    prs[19] <- dgamma(1/params[['sd_kappa']]^2,shape=0.01,rate=0.01,log=T)
+    prs[19] <- dgamma(1/params[['sd_w']]^2,shape=0.01,rate=0.01,log=T)
   }
   out <- ll + sum(prs)
   if (byperson) out <- out + prs1 + prs2
@@ -368,7 +368,7 @@ compute_msm_random_effects <- function(params, dat, at_quadrature) {
     if (at_quadrature) dd <- dat$Q
     mergeid <- dd$mergeid
     jkc_index <- dd$jkc_index
-    out <- params[['kappa']][jkc_index]
+    out <- params[['w']][jkc_index]
     return(out)
 }
 
@@ -380,15 +380,15 @@ compute_RR <- function(params, dat, at_quadrature) {
   model_spec <- dat$model_spec
   dd <- dat
   if (at_quadrature) dd <- dat$Q
-  bX <- aL <- eta <- kappa <- 0
+  bX <- aL <- eta <- w <- 0
   #  fixed effects
   if (model_spec$include_fixed_effects) bX <- compute_fixed_effects(params, dat, at_quadrature)
   #  longitudinal
   if (model_spec$joint) aL <- compute_longitudinal_effects(params, dat, at_quadrature, include_association_par=T)
   #  random effects on MSM transition
-  if (model_spec$include_msm_random) kappa <- compute_msm_random_effects(params, dat, at_quadrature)
+  if (model_spec$include_msm_random) w <- compute_msm_random_effects(params, dat, at_quadrature)
   #  putting all together
-  logRR <- bX + aL + eta + kappa
+  logRR <- bX + aL + eta + w
   #  return hazard ratios
   out <- exp(logRR)
   return(out)
@@ -528,13 +528,15 @@ update_baseline <- function(params, dat, prior=c(0.01,0.01), reference_ids=NULL)
 #######################################################
 #' @export
 identify_approx_function <- function(which_par) {
+    out <- NULL
     if (length(grep('a_',which_par))>0) out <- f_association_approximated
     if (which_par=='beta') out <- f_beta_approximated
     if (which_par=='intercept' | which_par=='slope') out <- f_lmm_random_effects_approximated
     if (which_par=='eta') out <- f_eta_approximated
-    if (which_par=='kappa') out <- f_kappa_approximated
+    if (length(grep('w_',which_par))>0) out <- f_w_approximated
     ##   added 12Jun2025
     if (which_par=='lmm_corr_random_effects') out <- f_lmm_corr_random_effects_approximated
+    if (is.null(out)) stop('no approximation function has been selected')
     return(out)
 }
     
@@ -714,7 +716,7 @@ gmrf_sampling <- function(which_par, params, dat) {
         start_x0 <- params[[pp]]
     }
     is_cty_random <- FALSE
-    if (length(grep('kappa',which_par))>0) {
+    if (length(grep('w_',which_par))>0) {
         #  random effects on an MSM transition
         pp <- which_par
         start_x0 <- NULL
