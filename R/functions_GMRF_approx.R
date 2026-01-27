@@ -560,21 +560,21 @@ f_w_approximated <- function(bx,bx0,params,dat,which_par='') {
   nms <- names(bx0)
   pm0[['w']][nms] <- bx0[nms]
   status <- dat$status
-  dev1 <- dev2 <- rep(0,length(bx0))
-  names(dev1) <- names(dev2) <- nms
 
   hq <- compute_haz(pm0,dat,at_quadrature = T,include_quadweights = T)
   hr <- as.numeric(tapply(hq,dat$Q$row_id,sum))
-  ##   go through the random effects for each transition
+  ##   go through the random effect for each country
   dfdw2 <- array(0, dat$nctys)
-  for (icty in dat$nctys) {
-    dfdw2[icty] <- sum(dat$hr[which(dat$jkc_index==paste0(icty,'_',which_jk))])
+  for (icty in 1:dat$nctys) {
+    dfdw2[icty] <- sum(hr[which(dat$jkc_index==paste0(icty,'_',which_jk))])
   }
   tildeQ <- obtain_IGMRF_Q(dat$nctys,1/sqrt(pm0[['sd_w']]))$tildeQ
 
+  A <- matrix(1,ncol=dat$nctys,nrow=1)
+  E <- 0
   Q <- diag(dfdw2) + tildeQ
   ncases <- dat[['ncases_by_jkc']][paste0(1:dat$nctys,'_',which_jk)]
-  m <- ncases - dfdw2 - dfdw*pm0[['w']][paste0(1:dat$nctys,'_',which_jk)]
+  m <- ncases - dfdw2 - dfdw2*pm0[['w']][paste0(1:dat$nctys,'_',which_jk)]
   m <- matrix(m,ncol=1)
 
   iQ <- MASS::ginv(Q)

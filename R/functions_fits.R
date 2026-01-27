@@ -558,66 +558,66 @@ auto_mode_finder <- function(which_par, start_x0, params, dat) {
     sp <- gmrf_settings$search_points
     xv <- seq(xr[1],xr[2],length.out=sp)
     
-  ##   identify the function to approximate the density
-  f <- identify_approx_function(which_par)
+    ##   identify the function to approximate the density
+    f <- identify_approx_function(which_par)
 
-  ##   initialise counter
-    iter <- 0
-    ##   get starting values
-    x0 <- NULL
-    if (which_par!='lmm_corr_random_effects') {
-        nm <- names(start_x0)
-        x0 <- start_x0
-    } else {
-        sb <- dat$subject
-        x0 <- cbind(params[['u']][sb],params[['d']][sb])
-        rownames(x0) <- sb
-    }
-    current_x0 <- x0
-    continue <- TRUE
-    ##store_x0 <- NULL
-    ##   carry out Newton-Raphson
-    while (continue) {
-      ##   get the new positions
-        ##--- before 05Jun2025
-      ## d <- f(xv,x0,params,dat,which_par)$d
-      ## new_x0 <- apply(d,2,function(xx){xv[which.max(xx)]})
-      ##   modified on 05Jun2025
-      ff <- f(xv,current_x0,params,dat,which_par)
-        new_x0 <- ff$eta_next
-        if (which_par!='lmm_corr_random_effects') {
-          names(new_x0) <- nm
-          dev1 <- ff$dev1
-          dev2 <- ff$dev2
+    ##   initialise counter
+      iter <- 0
+      ##   get starting values
+      x0 <- NULL
+      if (which_par!='lmm_corr_random_effects') {
+          nm <- names(start_x0)
+          x0 <- start_x0
       } else {
-        m <- ff$m
-          V <- ff$V
+          sb <- dat$subject
+          x0 <- cbind(params[['u']][sb],params[['d']][sb])
+          rownames(x0) <- sb
       }
-        ##   calculate absolute relative error (in 100%)
-        err <- c(abs((current_x0-new_x0)/new_x0)*100)
-        ##   update counter
-        iter <- iter + 1
-        ##   continue or stop
-        if (all(err[which(new_x0!=0)]<=gmrf_settings$eps)) {
-          ##   all reached maximum
-          continue <- FALSE
+      current_x0 <- x0
+      continue <- TRUE
+      ##store_x0 <- NULL
+      ##   carry out Newton-Raphson
+      while (continue) {
+        ##   get the new positions
+          ##--- before 05Jun2025
+        ## d <- f(xv,x0,params,dat,which_par)$d
+        ## new_x0 <- apply(d,2,function(xx){xv[which.max(xx)]})
+        ##   modified on 05Jun2025
+        ff <- f(xv,current_x0,params,dat,which_par)
+          new_x0 <- ff$eta_next
+          if (which_par!='lmm_corr_random_effects') {
+            names(new_x0) <- nm
+            dev1 <- ff$dev1
+            dev2 <- ff$dev2
         } else {
-          ##   some have not reached maximum
-          if (iter==gmrf_settings$max_iters) {
-              ##   max. iteration reached
-              continue <- FALSE
-              stop('max iteration reached but some still not at maximum')
-          }
+          m <- ff$m
+            V <- ff$V
         }
-        ##   continue or not, update the positions
-      current_x0 <- new_x0
-      ##store_x0 <- rbind(store_x0,new_x0)
+          ##   calculate absolute relative error (in 100%)
+          err <- c(abs((current_x0-new_x0)/new_x0)*100)
+          ##   update counter
+          iter <- iter + 1
+          ##   continue or stop
+          if (all(err[which(new_x0!=0)]<=gmrf_settings$eps)) {
+            ##   all reached maximum
+            continue <- FALSE
+          } else {
+            ##   some have not reached maximum
+            if (iter==gmrf_settings$max_iters) {
+                ##   max. iteration reached
+                continue <- FALSE
+                stop('max iteration reached but some still not at maximum')
+            }
+          }
+          ##   continue or not, update the positions
+        current_x0 <- new_x0
+        ##store_x0 <- rbind(store_x0,new_x0)
+      }
+      if (which_par!='lmm_corr_random_effects') {
+        out <- list(x=current_x0,iter=iter,abs_err100=err,dev1=dev1,dev2=dev2)
+    } else {
+      out <- list(x=current_x0,iter=iter,abs_err100=err,m=m,V=V)
     }
-    if (which_par!='lmm_corr_random_effects') {
-      out <- list(x=current_x0,iter=iter,abs_err100=err,dev1=dev1,dev2=dev2)
-  } else {
-    out <- list(x=current_x0,iter=iter,abs_err100=err,m=m,V=V)
-  }
     return(out)
 }
 
