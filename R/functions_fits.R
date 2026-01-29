@@ -647,13 +647,8 @@ sample_at_opt_mode_univariate <- function(opt) {
 sample_at_opt_mode_multivariate <- function(opt) {
   mx <- opt$x
   V <- opt$V
-  tmp <- check_positive_definiteness(opt$V)  ##  check positive defininteness
-  sx <- NULL
-  for (i in 1:nrow(mx)) {
-        s <- c(MASS::mvrnorm(1,mx[i,],V[i,,]))
-        sx <- rbind(sx,s)
-    }
-    out <- list(mean=mx,V=V,x=sx)
+  s <- c(MASS::mvrnorm(1,mx,V))
+  out <- list(mean=mx,V=V,x=s)
   return(out)
 }
 
@@ -751,7 +746,7 @@ gmrf_sampling <- function(which_par, params, dat) {
       } else {
         v_check <- check_positive_definiteness(opt_x$V)  ##  check positive definiteness
         if (!is.null(v_check$msg)) report_problems(v_check, dat)
-        xs <- sample_at_opt_mode_multivariate_faster(opt_x)
+        xs <- sample_at_opt_mode_multivariate(opt_x)
         out <- list(mean=xs$mean,V=xs$V,x=xs$x)
       }
     } else {
