@@ -366,7 +366,6 @@ compute_msm_random_effects <- function(params, dat, at_quadrature) {
     ##   get the relevant data
     dd <- dat
     if (at_quadrature) dd <- dat$Q
-    mergeid <- dd$mergeid
     jkc_index <- dd$jkc_index
     out <- params[['w']][jkc_index]
     return(out)
@@ -566,8 +565,12 @@ auto_mode_finder <- function(which_par, start_x0, params, dat) {
       ##   get starting values
       x0 <- NULL
       if (which_par!='lmm_corr_random_effects') {
-          nm <- names(start_x0)
-          x0 <- start_x0
+          if (length(grep('w_',which_par))>0) {
+            x0 <- start_x0
+          } else {
+            nm <- names(start_x0)
+            x0 <- start_x0
+          }
       } else {
           sb <- dat$subject
           x0 <- cbind(params[['u']][sb],params[['d']][sb])
@@ -575,7 +578,7 @@ auto_mode_finder <- function(which_par, start_x0, params, dat) {
       }
       current_x0 <- x0
       continue <- TRUE
-      ##store_x0 <- NULL
+      store_x0 <- NULL
       ##   carry out Newton-Raphson
       while (continue) {
         ##   get the new positions
@@ -584,39 +587,48 @@ auto_mode_finder <- function(which_par, start_x0, params, dat) {
         ## new_x0 <- apply(d,2,function(xx){xv[which.max(xx)]})
         ##   modified on 05Jun2025
         ff <- f(xv,current_x0,params,dat,which_par)
-          new_x0 <- ff$eta_next
-          if (which_par!='lmm_corr_random_effects') {
-            names(new_x0) <- nm
-            dev1 <- ff$dev1
-            dev2 <- ff$dev2
+        new_x0 <- ff$eta_next
+        if (which_par!='lmm_corr_random_effects') {
+            if (length(grep('w_',which_par))>0) {
+                m <- ff$m
+                V <- ff$V
+            } else {
+                names(new_x0) <- nm
+                dev1 <- ff$dev1
+                dev2 <- ff$dev2
+            }
         } else {
-          m <- ff$m
+            m <- ff$m
             V <- ff$V
         }
-          ##   calculate absolute relative error (in 100%)
-          err <- c(abs((current_x0-new_x0)/new_x0)*100)
-          ##   update counter
-          iter <- iter + 1
-          ##   continue or stop
-          if (all(err[which(new_x0!=0)]<=gmrf_settings$eps)) {
+        ##   calculate absolute relative error (in 100%)
+        err <- c(abs((current_x0-new_x0)/new_x0)*100)
+        ##   update counter
+        iter <- iter + 1
+        ##   continue or stop
+        if (all(err[which(new_x0!=0)]<=gmrf_settings$eps)) {
             ##   all reached maximum
             continue <- FALSE
-          } else {
+        } else {
             ##   some have not reached maximum
             if (iter==gmrf_settings$max_iters) {
                 ##   max. iteration reached
                 continue <- FALSE
                 stop('max iteration reached but some still not at maximum')
             }
-          }
-          ##   continue or not, update the positions
+        }
+        ##   continue or not, update the positions
         current_x0 <- new_x0
-        ##store_x0 <- rbind(store_x0,new_x0)
+        store_x0 <- rbind(store_x0,new_x0)
       }
-      if (which_par!='lmm_corr_random_effects') {
-        out <- list(x=current_x0,iter=iter,abs_err100=err,dev1=dev1,dev2=dev2)
+    if (which_par!='lmm_corr_random_effects') {
+      if (length(grep('w_',which_par))>0) {
+          out <- list(x=current_x0,iter=iter,abs_err100=err,m=m,V=V)
+      } else {
+          out <- list(x=current_x0,iter=iter,abs_err100=err,dev1=dev1,dev2=dev2)
+      }
     } else {
-      out <- list(x=current_x0,iter=iter,abs_err100=err,m=m,V=V)
+        out <- list(x=current_x0,iter=iter,abs_err100=err,m=m,V=V)
     }
     return(out)
 }
@@ -718,8 +730,8 @@ gmrf_sampling <- function(which_par, params, dat) {
     is_cty_random <- FALSE
     if (length(grep('w_',which_par))>0) {
         #  random effects on an MSM transition
-        pp <- which_par
-        start_x0 <- NULL
+        which_jk <- sub('w_','',which_par)
+        start_x0 <- params[['w']][grep(which_jk,names(params[['w']]))]
         is_cty_random <- TRUE
     }
 

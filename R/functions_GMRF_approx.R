@@ -563,7 +563,7 @@ f_w_approximated <- function(bx,bx0,params,dat,which_par='') {
 
   hq <- compute_haz(pm0,dat,at_quadrature = T,include_quadweights = T)
   hr <- as.numeric(tapply(hq,dat$Q$row_id,sum))
-  ##   go through the random effect for each country
+  
   dfdw2 <- array(0, dat$nctys)
   for (icty in 1:dat$nctys) {
     dfdw2[icty] <- sum(hr[which(dat$jkc_index==paste0(icty,'_',which_jk))])
@@ -574,7 +574,7 @@ f_w_approximated <- function(bx,bx0,params,dat,which_par='') {
   E <- 0
   Q <- diag(dfdw2) + tildeQ
   ncases <- dat[['ncases_by_jkc']][paste0(1:dat$nctys,'_',which_jk)]
-  m <- ncases - dfdw2 - dfdw2*pm0[['w']][paste0(1:dat$nctys,'_',which_jk)]
+  m <- ncases - dfdw2 + dfdw2*pm0[['w']][paste0(1:dat$nctys,'_',which_jk)]
   m <- matrix(m,ncol=1)
 
   iQ <- MASS::ginv(Q)
@@ -582,8 +582,10 @@ f_w_approximated <- function(bx,bx0,params,dat,which_par='') {
   mu_star <- mu - iQ%*%t(A)%*%MASS::ginv(A%*%iQ%*%t(A))%*%(A%*%mu-E)
   s_star <- iQ - iQ%*%t(A)%*%MASS::ginv(A%*%iQ%*%t(A))%*%(A%*%iQ)
 
+  mu_star <- mu_star[,1]
   eta_next <- mu_star
-  out <- list(eta_next=eta_next,m=mu_star,V=s_star,Q=Q)
+  names(eta_next) <- names(mu_star) <- nms
+  out <- list(eta_next=eta_next,m=mu_star,V=s_star,Q=Q, ncases=ncases)
   return(out)
 }
 
