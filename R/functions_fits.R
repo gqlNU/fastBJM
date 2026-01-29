@@ -659,6 +659,11 @@ sample_at_opt_mode_multivariate <- function(opt) {
 
 #' @export
 check_positive_definiteness <- function(V) {
+  if (length(dim(V))==2) {
+    tmp <- array(0,c(1,dim(V)))
+    tmp[1,,] <- V
+    V <- tmp
+  }
   c1 <- which(signif(V[,1,2],digits=10)!=signif(V[,2,1],digits=10))
   dtm <- V[,1,1]*V[,2,2] - V[,1,2]*V[,2,1]
   c2 <- which(dtm<=0)
