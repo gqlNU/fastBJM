@@ -593,8 +593,9 @@ f_w_approximated <- function(bx,bx0,params,dat,which_par='') {
 
 #' @export
 logden_jump_msm_random <- function(xstar,pdist) {
-  xx <- xstar
-  mu_star <- pdist$m
+  xx <- matrix(xstar,ncol=1)
+  n <- length(xx)
+  mu_star <- matrix(pdist$m,ncol=1)
   s_star <- pdist$V
   ED <- eigen(s_star)
   va <- ED$values
@@ -606,7 +607,7 @@ logden_jump_msm_random <- function(xstar,pdist) {
   inv_s_star <- ve%*%diag(vas)%*%t(ve)
   out <- -(n-1)/2*log(2*pi) - 1/2*sum(log(va[which(va>eps)])) - 
                          1/2*t(xx-mu_star)%*%inv_s_star%*%(xx-mu_star)
-  return(out)
+  return(as.numeric(out))
 }
 
 #' @export

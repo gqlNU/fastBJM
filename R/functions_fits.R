@@ -164,11 +164,11 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
             ustar <- upt$x
             propose_pars[[pp]][pms] <- ustar[pms]
             ##  q(ustar|u0)
-            tmp <- logden_jump_msm_random(ustar,upt[c('m','V')])
+            tmp <- logden_jump_msm_random(ustar,upt[c('mean','V')])
             lq_bottom <- c(lq_bottom,tmp)
             ##  for q(u0|ustar)
             upt_propose <- gmrf_sampling(which_par,propose_pars,data)
-            tmp <- logden_jump_msm_random(current_pars[[pp]][pms],upt_propose[c('m','V')])
+            tmp <- logden_jump_msm_random(current_pars[[pp]][pms],upt_propose[c('mean','V')])
             lq_top <- c(lq_top,tmp)
           }
           data$model_spec$byperson <- F
