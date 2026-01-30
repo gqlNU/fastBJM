@@ -785,18 +785,20 @@ gmrf_sampling <- function(which_par, params, dat) {
     if (which_par=='slope') pp <- 'd'
     if (length(grep('a_',which_par))>0) pp <- which_par
     if (which_par=='beta') pp <- which_par
+    is_cty_random <- FALSE
+    if (length(grep('w_',which_par))>0) is_cty_random <- TRUE
     if (which_par=='lmm_corr_random_effects') {
         pp <- which_par
         start_x0 <- NULL
     } else {
-        start_x0 <- params[[pp]]
-    }
-    is_cty_random <- FALSE
-    if (length(grep('w_',which_par))>0) {
-        #  random effects on an MSM transition
-        which_jk <- sub('w_','',which_par)
-        start_x0 <- params[['w']][grep(which_jk,names(params[['w']]))]
-        is_cty_random <- TRUE
+        if (is_cty_random) {
+            #  random effects on an MSM transition
+            pp <- 'w'
+            which_jk <- sub(pp,'',which_par)
+            start_x0 <- params[[pp]][grep(which_jk,names(params[['w']]))]
+        } else {
+            start_x0 <- params[[pp]]
+        }
     }
 
     ##   find the modes via Newton-Raphson
