@@ -585,7 +585,27 @@ f_w_approximated <- function(bx,bx0,params,dat,which_par='') {
   mu_star <- mu_star[,1]
   eta_next <- mu_star
   names(eta_next) <- names(mu_star) <- nms
-  out <- list(eta_next=eta_next,m=mu_star,V=s_star,Q=Q, ncases=ncases)
+
+  
+  out <- list(eta_next=eta_next,m=mu_star,V=s_star,Q=Q,ncases=ncases)
+  return(out)
+}
+
+#' @export
+logden_jump_msm_random <- function(xstar,pdist) {
+  xx <- xstar
+  mu_star <- pdist$m
+  s_star <- pdist$V
+  ED <- eigen(s_star)
+  va <- ED$values
+  vas <- va
+  eps <- 1e-10
+  vas[which(va<eps)] <- 0
+  vas[which(va>eps)] <- 1/va[which(va>eps)]
+  ve <- ED$vectors
+  inv_s_star <- ve%*%diag(vas)%*%t(ve)
+  out <- -(n-1)/2*log(2*pi) - 1/2*sum(log(va[which(va>eps)])) - 
+                         1/2*t(xx-mu_star)%*%inv_s_star%*%(xx-mu_star)
   return(out)
 }
 

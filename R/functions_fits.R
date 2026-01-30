@@ -149,6 +149,43 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
               sims.list[[pp]] <- rbind(sims.list[[pp]],c(current_pars[[pp]]))
           }
       }
+      ##-#########################################################
+      ##   update transition specific IID random effects
+      ##-#########################################################
+      if (update_setting$update_msm_random) {
+          pp <- 'w'
+          #   update for each transition
+          propose_pars <- current_pars
+          lq_top <- lq_bottom <- NULL
+          for (jk in ats) {
+            which_par <- paste0(pp,'_',jk)
+            pms <- paste0(1:fitdata$nctys,'_',jk)
+            upt <- gmrf_sampling(which_par,current_pars,data)
+            ustar <- upt$x
+            propose_pars[[pp]][pms] <- ustar[pms]
+            ##  q(ustar|u0)
+            tmp <- logden_jump_msm_random(ustar,upt[c('m','V')])
+            lq_bottom <- c(lq_bottom,tmp)
+            ##  for q(u0|ustar)
+            upt_propose <- gmrf_sampling(which_par,propose_pars,data)
+            tmp <- logden_jump_msm_random(current_pars[[pp]][pms],upt_propose[c('m','V')])
+            lq_top <- c(lq_top,tmp)
+          }
+          data$model_spec$byperson <- F
+          propose_jpd <- log_posterior(propose_pars,data)
+          d <- propose_jpd - current_jpd + sum(lq_top - lq_bottom)
+          if (d>=0) {
+              current_pars <- propose_pars
+              current_jpd <- propose_jpd
+          } else {
+              if (d>log(runif(1))) {
+                  current_pars <- propose_pars
+                  current_jpd <- propose_jpd
+              }
+          }
+          ##   store iteration
+          sims.list[[pp]] <- rbind(sims.list[[pp]],c(current_pars[[pp]]))
+      }
 
       ##-##################################################
       ##   Gibbs for error SD in LMM
@@ -500,6 +537,33 @@ ll_lmm <- function(params, dat, byperson=F) {
 #######################################################
 #' @export
 update_baseline <- function(params, dat, prior=c(0.01,0.01), reference_ids=NULL) {
+  nms <- names(params[['l']])
+  shape <- rep(0,length(nms))
+  names(shape) <- nms
+  if (!is.null(reference_ids)) {
+    ii <- reference_ids
+    ts <- tapply(dat$status[ii],dat$jkg_index[ii],sum)
+  } else {
+    ts <- dat$ncases_by_jkg
+  }
+  shape[nms] <- ts[nms]
+  wh <- compute_haz(params, dat, at_quadrature = T, without='h0')
+  whc <- tapply(wh,dat$Q$jkg_index,sum)
+  rate <- rep(0,length(nms))
+  names(rate) <- nms
+  rate[names(whc)] <- whc
+  out <- sapply(1:length(shape),function(x){
+       rgamma(1,shape=shape[x]+prior[1],rate=rate[x]+prior[2])})
+  if (any(out<=0)) out[which(out<=0)] <- 1e-30
+  names(out) <- nms
+  return(out)
+}
+
+#######################################################
+###  function to update transition specific random effects
+#######################################################
+#' @export
+update_msm_random_effects <- function(params, dat) {
   nms <- names(params[['l']])
   shape <- rep(0,length(nms))
   names(shape) <- nms

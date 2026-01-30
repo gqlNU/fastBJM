@@ -159,8 +159,11 @@ initialise_parameters <- function(dat, params, model_spec, update_setting) {
     if (update_setting$update_fixed_effects)
         out[['beta']] <- gmrf_sampling('beta', out, dat)$x
     if (model_spec$include_msm_random) {
-        which_par <- 'w_12'
-        gmrf_sampling(which_par, out, dat)
+        for (jk in dat$transitions_to_analyse) {
+            which_par <- paste0('w_',jk)
+            pms <- paste0(1:dat$nctys,'_',jk)
+            out[['w']][pms] <- gmrf_sampling(which_par, out, dat)$x
+        }
     }
     return(out)
 }
