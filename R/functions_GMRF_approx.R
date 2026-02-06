@@ -612,6 +612,9 @@ logden_jump_msm_random <- function(xstar,pdist) {
 
 #' @export
 logden_exchangeable_s2z <- function(x,prec) {
+  #
+  #  p. 37 of Rue and Held 2005
+  #
   n <- length(x)
   A <- matrix(1,ncol=n,nrow=1)
   E <- 0  #  sum to 0 constraint
