@@ -258,7 +258,8 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
   cat(msg1)
   cat(msg2)
   cat(' ')
-  return(sims.list)
+  out <- list(sims.list=sims.list,current_pars=current_pars)
+  return(out)
 }
 
 ########################################
