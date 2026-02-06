@@ -178,6 +178,9 @@ model_spec$age_range <- c(0,1500)
 model_spec$age_cuts <- NULL
 ##   person ID that links the event history data to the longitudinal data
 model_spec$PID <- 'id'
+
+## --- include transition specific IID random effects?
+model_spec$include_msm_random <- FALSE
 ####################
 ##   end user input
 ####################
