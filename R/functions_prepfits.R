@@ -150,6 +150,8 @@ get_parameters <- function(dat, model_spec) {
 ########################################
 #' @export
 initialise_parameters <- function(dat, params, model_spec, update_setting) {
+    fixed_sd <- c(0.06,0.06,0.18,0.12,0.12,0.13,0.44,0.22)
+    names(fixed_sd) <- dat$transitions_to_analyse
     out <- params
     ##   correlated random effects
     if (update_setting$update_lmm_random_effects) {
@@ -170,6 +172,8 @@ initialise_parameters <- function(dat, params, model_spec, update_setting) {
             which_par <- paste0('w_',jk)
             pms <- paste0(1:dat$nctys,'_',jk)
             out[['w']][pms] <- gmrf_sampling(which_par, out, dat)$x
+            out[['sd_w']][jk] <- sd(out[['w']][pms])
+            out[['sd_w']][jk] <- fixed_sd[jk]
         }
     }
     return(out)
