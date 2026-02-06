@@ -56,8 +56,11 @@ gather_update_setting <- function(dat, model_spec) {
   out$update_logdel <- FALSE
   if (model_spec$weibull_baseline) out$update_logdel <- TRUE
 
-  out$update_msm_random <- FALSE
-  if (model_spec$include_msm_random) out$update_msm_random <- TRUE
+  out$update_msm_random <- out$update_msm_random_SD <- FALSE
+  if (model_spec$include_msm_random) {
+    out$update_msm_random <- TRUE
+    out$update_msm_random_SD <- TRUE
+  }
   return(out)
 }
 

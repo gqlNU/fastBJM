@@ -186,7 +186,34 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
           ##   store iteration
           sims.list[[pp]] <- rbind(sims.list[[pp]],c(current_pars[[pp]]))
       }
-
+      ##-#####################################################################
+      ##   MH update variance of the transition specific IID random effects
+      ##     log(sigma) ~ N(current, jump_sd)
+      ##-#####################################################################
+      if (update_setting$update_msm_random_SD) {
+        jump_sd <- list()
+        jump_sd[['sd_w']] <- 0.1
+        pp <- 'sd_w'
+        propose_pars <- current_pars
+        propose_pars[[pp]] <- rlnorm(1,current_pars[[pp]],0.1)
+        propose_jpd <- log_posterior(propose_pars,data)
+        ##  for q(u_current|u_proposed)
+        lq_top <- dlnorm(current_pars[[pp]],propose_pars[[pp]],jump_sd[[pp]],log=T)
+        ##  for q(u_proposed|u_current)
+        lq_bottom <- dlnorm(propose_pars[[pp]],current_pars[[pp]],jump_sd[[pp]],log=T)
+        d <- propose_jpd - current_jpd + lq_top - lq_bottom
+        if (d>=0) {
+          current_pars <- propose_pars
+          current_jpd <- propose_jpd
+        } else {
+          if (d>log(runif(1))) {
+            current_pars <- propose_pars
+            current_jpd <- propose_jpd
+          }
+        }
+        sims.list[[pp]] <- c(sims.list[[pp]],current_pars[[pp]])
+      }
+      
       ##-##################################################
       ##   Gibbs for error SD in LMM
       ##-##################################################
@@ -318,7 +345,7 @@ log_posterior <- function(params, dat) {
       tmp_prs <- tmp_prs + logden_exchangeable_s2z(pm,precision)
     }
     prs[20] <- tmp_prs
-    prs[19] <- dgamma(1/params[['sd_w']]^2,shape=0.01,rate=0.01,log=T)
+    prs[19] <- dunif(params[['sd_w']],0.00001,10,log=T)
   }
   out <- ll + sum(prs)
   if (byperson) out <- out + prs1 + prs2
