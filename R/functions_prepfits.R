@@ -59,7 +59,7 @@ gather_update_setting <- function(dat, model_spec) {
   out$update_msm_random <- out$update_msm_random_SD <- FALSE
   if (model_spec$include_msm_random) {
     out$update_msm_random <- TRUE
-    out$update_msm_random_SD <- F
+    out$update_msm_random_SD <- TRUE
   }
   return(out)
 }
@@ -150,8 +150,6 @@ get_parameters <- function(dat, model_spec) {
 ########################################
 #' @export
 initialise_parameters <- function(dat, params, model_spec, update_setting) {
-    fixed_sd <- c(0.06,0.06,0.18,0.12,0.12,0.13,0.44,0.22)
-    names(fixed_sd) <- dat$transitions_to_analyse
     out <- params
     ##   correlated random effects
     if (update_setting$update_lmm_random_effects) {
@@ -168,12 +166,11 @@ initialise_parameters <- function(dat, params, model_spec, update_setting) {
     if (update_setting$update_fixed_effects)
         out[['beta']] <- gmrf_sampling('beta', out, dat)$x
     if (model_spec$include_msm_random) {
-        for (jk in dat$transitions_to_analyse) {
+        for (jk in model_spec$transitions_with_random) {
             which_par <- paste0('w_',jk)
             pms <- paste0(1:dat$nctys,'_',jk)
             out[['w']][pms] <- gmrf_sampling(which_par, out, dat)$x
             out[['sd_w']][jk] <- sd(out[['w']][pms])
-            out[['sd_w']][jk] <- fixed_sd[jk]
         }
     }
     return(out)

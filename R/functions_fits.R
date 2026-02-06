@@ -154,10 +154,10 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
       ##-#########################################################
       if (update_setting$update_msm_random) {
           pp <- 'w'
-          #   update for each transition
+          #   update each transition in turn
           propose_pars <- current_pars
           lq_top <- lq_bottom <- NULL
-          for (jk in ats) {
+          for (jk in model_spec$transitions_with_random) {
             which_par <- paste0(pp,'_',jk)
             pms <- paste0(1:fitdata$nctys,'_',jk)
             upt <- gmrf_sampling(which_par,current_pars,data)
@@ -170,18 +170,18 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
             upt_propose <- gmrf_sampling(which_par,propose_pars,data)
             tmp <- logden_jump_msm_random(current_pars[[pp]][pms],upt_propose[c('mean','V')])
             lq_top <- c(lq_top,tmp)
-          }
-          data$model_spec$byperson <- F
-          propose_jpd <- log_posterior(propose_pars,data)
-          d <- propose_jpd - current_jpd + sum(lq_top - lq_bottom)
-          if (d>=0) {
-              current_pars <- propose_pars
-              current_jpd <- propose_jpd
-          } else {
-              if (d>log(runif(1))) {
-                  current_pars <- propose_pars
-                  current_jpd <- propose_jpd
-              }
+            data$model_spec$byperson <- F
+            propose_jpd <- log_posterior(propose_pars,data)
+            d <- propose_jpd - current_jpd + sum(lq_top - lq_bottom)
+            if (d>=0) {
+                current_pars <- propose_pars
+                current_jpd <- propose_jpd
+            } else {
+                if (d>log(runif(1))) {
+                    current_pars <- propose_pars
+                    current_jpd <- propose_jpd
+                }
+            }
           }
           ##   store iteration
           sims.list[[pp]] <- rbind(sims.list[[pp]],c(current_pars[[pp]]))
@@ -191,17 +191,16 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
       ##     log(sigma) ~ N(current, jump_sd)
       ##-#####################################################################
       if (update_setting$update_msm_random_SD) {
-        jump_sd <- list()
-        jump_sd[['sd_w']] <- 0.1
+        jump_sd <- model_spec$jump_sd
         pp <- 'sd_w'
-        for (jk in ats) {
+        for (jk in model_spec$transitions_with_random) {
           propose_pars <- current_pars
           propose_pars[[pp]][jk] <- rlnorm(1,log(current_pars[[pp]][jk]),jump_sd[[pp]])
           propose_jpd <- log_posterior(propose_pars,data)
           ##  for q(u_current|u_proposed)
-          lq_top <- dlnorm(current_pars[[pp]][jk],propose_pars[[pp]][jk],jump_sd[[pp]],log=T)
+          lq_top <- dlnorm(current_pars[[pp]][jk],log(propose_pars[[pp]][jk]),jump_sd[[pp]],log=T)
           ##  for q(u_proposed|u_current)
-          lq_bottom <- dlnorm(propose_pars[[pp]][jk],current_pars[[pp]][jk],jump_sd[[pp]],log=T)
+          lq_bottom <- dlnorm(propose_pars[[pp]][jk],log(current_pars[[pp]][jk]),jump_sd[[pp]],log=T)
           d <- propose_jpd - current_jpd + lq_top - lq_bottom
           if (d>=0) {
             current_pars <- propose_pars
@@ -340,14 +339,14 @@ log_posterior <- function(params, dat) {
   if (model_spec$include_msm_random) {
     #  random effects for each MSM transition
     tmp_prs <- 0
-    for (jk in ats) {
+    for (jk in model_spec$transitions_with_random) {
       which_pars <- grep(paste0('_',jk),names(params[['w']]))
       pm <- params[['w']][which_pars]
       precision <- 1/params[['sd_w']][jk]^2
       tmp_prs <- tmp_prs + logden_exchangeable_s2z(pm,precision)
     }
     prs[20] <- tmp_prs
-    prs[19] <- sum(dunif(params[['sd_w']],0.00001,10,log=T))
+    prs[19] <- sum(dunif(params[['sd_w']][model_spec$transitions_with_random],0.00001,10,log=T))
   }
   out <- ll + sum(prs)
   if (byperson) out <- out + prs1 + prs2
