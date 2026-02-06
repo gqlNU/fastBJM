@@ -136,8 +136,9 @@ get_parameters <- function(dat, model_spec) {
         nms <- NULL
         for (icty in 1:dat$nctys) nms <- c(nms,paste0(icty,'_',ats))
         names(params[['w']]) <- nms
-        #   random effect SD common to all transitions
-        params[['sd_w']] <- 1
+        #   random effect SD per transition
+        params[['sd_w']] <- rep(0.5,length(ats))
+        names(params[['sd_w']]) <- ats
     }
     return(params)
 }

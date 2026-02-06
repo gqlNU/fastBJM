@@ -194,24 +194,26 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
         jump_sd <- list()
         jump_sd[['sd_w']] <- 0.1
         pp <- 'sd_w'
-        propose_pars <- current_pars
-        propose_pars[[pp]] <- rlnorm(1,log(current_pars[[pp]]),0.1)
-        propose_jpd <- log_posterior(propose_pars,data)
-        ##  for q(u_current|u_proposed)
-        lq_top <- dlnorm(current_pars[[pp]],propose_pars[[pp]],jump_sd[[pp]],log=T)
-        ##  for q(u_proposed|u_current)
-        lq_bottom <- dlnorm(propose_pars[[pp]],current_pars[[pp]],jump_sd[[pp]],log=T)
-        d <- propose_jpd - current_jpd + lq_top - lq_bottom
-        if (d>=0) {
-          current_pars <- propose_pars
-          current_jpd <- propose_jpd
-        } else {
-          if (d>log(runif(1))) {
+        for (jk in ats) {
+          propose_pars <- current_pars
+          propose_pars[[pp]][jk] <- rlnorm(1,log(current_pars[[pp]][jk]),jump_sd[[pp]])
+          propose_jpd <- log_posterior(propose_pars,data)
+          ##  for q(u_current|u_proposed)
+          lq_top <- dlnorm(current_pars[[pp]][jk],propose_pars[[pp]][jk],jump_sd[[pp]],log=T)
+          ##  for q(u_proposed|u_current)
+          lq_bottom <- dlnorm(propose_pars[[pp]][jk],current_pars[[pp]][jk],jump_sd[[pp]],log=T)
+          d <- propose_jpd - current_jpd + lq_top - lq_bottom
+          if (d>=0) {
             current_pars <- propose_pars
             current_jpd <- propose_jpd
+          } else {
+            if (d>log(runif(1))) {
+              current_pars <- propose_pars
+              current_jpd <- propose_jpd
+            }
           }
         }
-        sims.list[[pp]] <- c(sims.list[[pp]],current_pars[[pp]])
+        sims.list[[pp]] <- rbind(sims.list[[pp]],current_pars[[pp]])
       }
       
       ##-##################################################
@@ -341,11 +343,11 @@ log_posterior <- function(params, dat) {
     for (jk in ats) {
       which_pars <- grep(paste0('_',jk),names(params[['w']]))
       pm <- params[['w']][which_pars]
-      precision <- 1/params[['sd_w']]^2
+      precision <- 1/params[['sd_w']][jk]^2
       tmp_prs <- tmp_prs + logden_exchangeable_s2z(pm,precision)
     }
     prs[20] <- tmp_prs
-    prs[19] <- dunif(params[['sd_w']],0.00001,10,log=T)
+    prs[19] <- sum(dunif(params[['sd_w']],0.00001,10,log=T))
   }
   out <- ll + sum(prs)
   if (byperson) out <- out + prs1 + prs2

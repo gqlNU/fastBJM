@@ -568,7 +568,7 @@ f_w_approximated <- function(bx,bx0,params,dat,which_par='') {
   for (icty in 1:dat$nctys) {
     dfdw2[icty] <- sum(hr[which(dat$jkc_index==paste0(icty,'_',which_jk))])
   }
-  tildeQ <- obtain_IGMRF_Q(dat$nctys,1/sqrt(pm0[['sd_w']]))$tildeQ
+  tildeQ <- obtain_IGMRF_Q(dat$nctys,1/sqrt(pm0[['sd_w']][which_jk]))$tildeQ
 
   A <- matrix(1,ncol=dat$nctys,nrow=1)
   E <- 0
