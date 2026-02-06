@@ -195,7 +195,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
         jump_sd[['sd_w']] <- 0.1
         pp <- 'sd_w'
         propose_pars <- current_pars
-        propose_pars[[pp]] <- rlnorm(1,current_pars[[pp]],0.1)
+        propose_pars[[pp]] <- rlnorm(1,log(current_pars[[pp]]),0.1)
         propose_jpd <- log_posterior(propose_pars,data)
         ##  for q(u_current|u_proposed)
         lq_top <- dlnorm(current_pars[[pp]],propose_pars[[pp]],jump_sd[[pp]],log=T)
