@@ -51,7 +51,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
           names(propose_pars[['u']]) <- names(propose_pars[['d']]) <- data$subject
           propose_jpd_byperson <- log_posterior(propose_pars,data)
           ##  q(ustar|u0)
-          mp <- check_positive_definiteness(upt$V)
+          #mp <- check_positive_definiteness(upt$V)
           ind_lq_bottom <- sapply(1:data$npds,
                                      function(xx){mvtnorm::dmvnorm(ustar[xx,],
                                                           mean=upt$mean[xx,],
@@ -60,7 +60,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
           lq_bottom <- sum(ind_lq_bottom)
           ##  for q(u0|ustar)
           upt_propose <- gmrf_sampling(which_lmm_part,propose_pars,data)
-          tmp <- check_positive_definiteness(upt_propose$V)
+          #tmp <- check_positive_definiteness(upt_propose$V)
           ind_lq_top <- sapply(1:data$npds,
                                    function(xx){mvtnorm::dmvnorm(u0[xx,],
                                                         mean=upt_propose$mean[xx,],
