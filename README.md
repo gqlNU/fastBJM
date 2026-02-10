@@ -225,19 +225,25 @@ for (which_jk in model_spec$transitions_to_analyse) {
     ic <- ic + 1
     which_fit <- as.numeric(jk[which(jk[,1]==which_jk),2])
     res <- fits_exp[[which_fit]]$res
-    plot(sims.list$l[,ic],main=paste0('l ',which_jk))
+
+    plot(sims.list$l[,ic],main=paste0('l ',which_jk),type='l')
     abline(h=res['rate',c(1,2,3)],col='orange',lty=c(1,2,2),lwd=3)
+    abline(h=round(posterior_summary(sims.list$l[,ic]),digits=3),col='blue',lty=1,lwd=1)
+
     b <- NULL
     if (model_spec$include_fixed_effects) {
-        plot(sims.list$beta[,ic],main=paste0('beta ',which_jk))
+        plot(sims.list$beta[,ic],main=paste0('beta ',which_jk),type='l')
         abline(h=res['matchgender mismatch',c(1,2,3)],col='orange',lty=c(1,2,2),lwd=3)
         b <- round(posterior_summary(sims.list$beta[,ic]),digits=3)
+        abline(h=b,col='blue',lty=1,lwd=1)
     }
+    
     print(' ==================================================================== ')
     print(paste0('--- transition (',which_jk,'): first block = fastBJM; second block = mstate'))
     print(rbind(round(posterior_summary(sims.list$l[,ic]),digits=3),b)) 
     print(round(res[,c(1,2,3)],digits=3))
 }
+
 ```
 </details>
 
