@@ -211,7 +211,8 @@ inits <- initialise_parameters(fitdata, params, model_spec, update_setting)
 
 ##  == carry out MCMC update
 niters <- 100
-sims.list <- mcmc_update(fitdata, inits, niters, model_spec, update_setting)
+res <- mcmc_update(fitdata, inits, niters, model_spec, update_setting)
+sims.list <- res$sims.list
 
 
 #################################
