@@ -273,3 +273,90 @@ The longitudinal measurements for this person are stored under the column `y` in
 42848    4054  70 -1.3820206        64
 52005    4054  72 -1.0251801        64
 ```
+
+
+## Example 3: A joint model with exchangeable random effects on each MSM transition <font color='orange'>(for illustration only)</font>
+<details>
+<summary> R code to fit a five-state joint model with exchangeable random effects on each transition</summary>
+
+```R
+library('fastBJM')
+
+#################################
+##   user inputs
+#################################
+##   define permissible transitions
+ats <- c('12','13','15','24','25','34','35','45')
+names(ats) <- ats
+model_spec <- list()
+##   person ID that links the event history data to the longitudinal data
+model_spec$PID <- 'mergeid'
+##   the set of transitions to be included in the analysis
+model_spec$allowable_transitions <- model_spec$transitions_to_analyse <- ats
+## --- name of the longitudinal variable in the dataset
+model_spec$which_longvar <- 'y'
+## --- association structure:
+##   aps <- c('a_1','a_2'): a quadratic function of the current value with the transition intensities
+##   aps <- c('a_1')      : a linear function of the current value with the transition intensities
+##   aps <- NULL          : for a separate analysis of the two submodels
+model_spec$aps <- c('a_1','a_2')
+model_spec$a1p <- ats
+model_spec$a2p <- ats
+## --- fixed effects on the transition intensities
+##   X_spec[,1]: names of the columns to be included as fixed effects
+##   X_spec[,2]: types of covariates (cat=binary/categorical and cnt=continuous)
+##   set model_spec$X_spec <- NULL if no fixed effect included
+model_spec$X_spec <- matrix(c('x1','cnt',
+                              'x2','cat'),byrow=T,ncol=2)
+## --- which transition intensities are specified as a function of the fixed effects
+##   e.g. x1=ats means x1 affects all permissible transitions and each transition has its own effect estimate
+##   e.g. x1=c('12','15') means x1 only affects the 12 and 15 transitions
+##   beta_by_transitions will be automatically set to NULL if model_spec$X_spec is NULL (i.e. no fixed effect)
+model_spec$beta_by_transitions <- list(x1=ats,
+                                       x2=ats)
+## --- definition of the age intervals for the baseline intensities
+##   the setting below corresponds to two age intervals, [50, 70) and [70,150]
+model_spec$age_range <- c(50,150)
+model_spec$age_cuts <- NULL
+
+## --- include transition specific IID random effects?
+model_spec$include_msm_random <- TRUE
+jump_sd <- list()
+jump_sd[['sd_w']] <- 0.2
+model_spec$jump_sd <- jump_sd
+model_spec$transitions_with_random <- ats
+#################################
+##   end user input
+#################################
+
+##   specify other specifications (using defaults)
+model_spec <- tidy_model_spec(model_spec)
+
+##   get data in
+dfile <- system.file("extdata", "simdata1.rds", package = "fastBJM")
+dd <- readRDS(dfile)
+
+##   add a country indicator in (for illustration only)
+nps <- length(unique(dd$msm$mergeid))
+set.seed(10)
+cty <- sample(1:6,nps,replace=T)
+names(cty) <- unique(dd$msm$mergeid)
+dd$msm$country <- dd$msm$ctyn <- cty[as.character(dd$msm$mergeid)]
+
+fitdata <- prepare_fitdata(dd,model_spec)
+
+#   define updating scheme based on the model specification
+update_setting <- gather_update_setting(fitdata, model_spec)
+
+##   specify model parameters and their starting values
+params <- get_parameters(fitdata, model_spec)
+inits <- initialise_parameters(fitdata, params, model_spec, update_setting)
+
+
+##   carry out MCMC update (for illustration only)
+niters <- 2
+res <- mcmc_update(fitdata, inits, niters, model_spec, update_setting)
+sims.list <- res$sims.list
+current_pars <- res$current_pars
+```
+</details>
