@@ -329,9 +329,9 @@ model_spec$age_cuts <- NULL
 ## --- include transition specific IID random effects?
 model_spec$include_msm_random <- TRUE
 jump_sd <- list()
-jump_sd[['sd_w']] <- 0.2
+jump_sd[['sd_w']] <- 0.2  ##  SD for the log normal random walk proposal
 model_spec$jump_sd <- jump_sd
-model_spec$transitions_with_random <- ats
+model_spec$transitions_with_random <- ats  ## which transitions have its own random effect set (e.g. c('12','13'))
 #################################
 ##   end user input
 #################################
