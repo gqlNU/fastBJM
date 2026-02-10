@@ -51,7 +51,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
           names(propose_pars[['u']]) <- names(propose_pars[['d']]) <- data$subject
           propose_jpd_byperson <- log_posterior(propose_pars,data)
           ##  q(ustar|u0)
-          mp <- check_positive_definiteness(upt$V)
+          #mp <- check_positive_definiteness(upt$V)
           ind_lq_bottom <- sapply(1:data$npds,
                                      function(xx){mvtnorm::dmvnorm(ustar[xx,],
                                                           mean=upt$mean[xx,],
@@ -60,7 +60,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
           lq_bottom <- sum(ind_lq_bottom)
           ##  for q(u0|ustar)
           upt_propose <- gmrf_sampling(which_lmm_part,propose_pars,data)
-          tmp <- check_positive_definiteness(upt_propose$V)
+          #tmp <- check_positive_definiteness(upt_propose$V)
           ind_lq_top <- sapply(1:data$npds,
                                    function(xx){mvtnorm::dmvnorm(u0[xx,],
                                                         mean=upt_propose$mean[xx,],
@@ -121,7 +121,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
           }
           sims.list[[pp]] <- rbind(sims.list[[pp]],current_pars[[pp]])
       }
-    ##-################################
+      ##-################################
       ##   update association parameters
       ##-################################
       if (update_setting$update_association) {
@@ -149,7 +149,72 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
               sims.list[[pp]] <- rbind(sims.list[[pp]],c(current_pars[[pp]]))
           }
       }
-
+      ##-#########################################################
+      ##   update transition specific IID random effects
+      ##-#########################################################
+      if (update_setting$update_msm_random) {
+          pp <- 'w'
+          #   update each transition in turn
+          propose_pars <- current_pars
+          lq_top <- lq_bottom <- NULL
+          for (jk in model_spec$transitions_with_random) {
+            which_par <- paste0(pp,'_',jk)
+            pms <- paste0(1:fitdata$nctys,'_',jk)
+            upt <- gmrf_sampling(which_par,current_pars,data)
+            ustar <- upt$x
+            propose_pars[[pp]][pms] <- ustar[pms]
+            ##  q(ustar|u0)
+            tmp <- logden_jump_msm_random(ustar,upt[c('mean','V')])
+            lq_bottom <- c(lq_bottom,tmp)
+            ##  for q(u0|ustar)
+            upt_propose <- gmrf_sampling(which_par,propose_pars,data)
+            tmp <- logden_jump_msm_random(current_pars[[pp]][pms],upt_propose[c('mean','V')])
+            lq_top <- c(lq_top,tmp)
+            data$model_spec$byperson <- F
+            propose_jpd <- log_posterior(propose_pars,data)
+            d <- propose_jpd - current_jpd + sum(lq_top - lq_bottom)
+            if (d>=0) {
+                current_pars <- propose_pars
+                current_jpd <- propose_jpd
+            } else {
+                if (d>log(runif(1))) {
+                    current_pars <- propose_pars
+                    current_jpd <- propose_jpd
+                }
+            }
+          }
+          ##   store iteration
+          sims.list[[pp]] <- rbind(sims.list[[pp]],c(current_pars[[pp]]))
+      }
+      ##-#####################################################################
+      ##   MH update variance of the transition specific IID random effects
+      ##     log(sigma) ~ N(current, jump_sd)
+      ##-#####################################################################
+      if (update_setting$update_msm_random_SD) {
+        jump_sd <- model_spec$jump_sd
+        pp <- 'sd_w'
+        for (jk in model_spec$transitions_with_random) {
+          propose_pars <- current_pars
+          propose_pars[[pp]][jk] <- rlnorm(1,log(current_pars[[pp]][jk]),jump_sd[[pp]])
+          propose_jpd <- log_posterior(propose_pars,data)
+          ##  for q(u_current|u_proposed)
+          lq_top <- dlnorm(current_pars[[pp]][jk],log(propose_pars[[pp]][jk]),jump_sd[[pp]],log=T)
+          ##  for q(u_proposed|u_current)
+          lq_bottom <- dlnorm(propose_pars[[pp]][jk],log(current_pars[[pp]][jk]),jump_sd[[pp]],log=T)
+          d <- propose_jpd - current_jpd + lq_top - lq_bottom
+          if (d>=0) {
+            current_pars <- propose_pars
+            current_jpd <- propose_jpd
+          } else {
+            if (d>log(runif(1))) {
+              current_pars <- propose_pars
+              current_jpd <- propose_jpd
+            }
+          }
+        }
+        sims.list[[pp]] <- rbind(sims.list[[pp]],current_pars[[pp]])
+      }
+      
       ##-##################################################
       ##   Gibbs for error SD in LMM
       ##-##################################################
@@ -193,7 +258,8 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
   cat(msg1)
   cat(msg2)
   cat(' ')
-  return(sims.list)
+  out <- list(sims.list=sims.list,current_pars=current_pars)
+  return(out)
 }
 
 ########################################
@@ -216,7 +282,7 @@ log_posterior <- function(params, dat) {
   #################################
   #   prior contributions
   #################################
-  prs <- rep(0,14)
+  prs <- rep(0,20)
   #  age-specific baselines
   prs[1] <- sum(dgamma(params[['l']],shape=0.01,rate=0.01,log=T))
   if (model_spec$weibull_baseline) prs[1] <- prs[1] + sum(dunif(exp(params[['logdel']]),0.00001,5,log=T))  # added on 15Oct2025
@@ -270,6 +336,18 @@ log_posterior <- function(params, dat) {
               prs[12] <- sum(dnorm(params[['d']],mean=params[['m_d']],sd=params[['sd_d']],log=T))
           }
       }
+  }
+  if (model_spec$include_msm_random) {
+    #  random effects for each MSM transition
+    tmp_prs <- 0
+    for (jk in model_spec$transitions_with_random) {
+      which_pars <- grep(paste0('_',jk),names(params[['w']]))
+      pm <- params[['w']][which_pars]
+      precision <- 1/params[['sd_w']][jk]^2
+      tmp_prs <- tmp_prs + logden_exchangeable_s2z(pm,precision)
+    }
+    prs[20] <- tmp_prs
+    prs[19] <- sum(dunif(params[['sd_w']][model_spec$transitions_with_random],0.00001,10,log=T))
   }
   out <- ll + sum(prs)
   if (byperson) out <- out + prs1 + prs2
@@ -346,6 +424,20 @@ compute_longitudinal_effects <- function(params, dat, at_quadrature, include_ass
 }
 
 #######################################################
+###  function to calculate the random effects on 
+###  MSM transitions on the log scale
+#######################################################
+#' @export
+compute_msm_random_effects <- function(params, dat, at_quadrature) {
+    ##   get the relevant data
+    dd <- dat
+    if (at_quadrature) dd <- dat$Q
+    jkc_index <- dd$jkc_index
+    out <- params[['w']][jkc_index]
+    return(out)
+}
+
+#######################################################
 ###  function to calculate the hazard ratios
 #######################################################
 #' @export
@@ -353,13 +445,15 @@ compute_RR <- function(params, dat, at_quadrature) {
   model_spec <- dat$model_spec
   dd <- dat
   if (at_quadrature) dd <- dat$Q
-  bX <- aL <- eta <- kappa <- 0
+  bX <- aL <- eta <- w <- 0
   #  fixed effects
   if (model_spec$include_fixed_effects) bX <- compute_fixed_effects(params, dat, at_quadrature)
   #  longitudinal
   if (model_spec$joint) aL <- compute_longitudinal_effects(params, dat, at_quadrature, include_association_par=T)
+  #  random effects on MSM transition
+  if (model_spec$include_msm_random) w <- compute_msm_random_effects(params, dat, at_quadrature)
   #  putting all together
-  logRR <- bX + aL + eta + kappa
+  logRR <- bX + aL + eta + w
   #  return hazard ratios
   out <- exp(logRR)
   return(out)
@@ -495,17 +589,46 @@ update_baseline <- function(params, dat, prior=c(0.01,0.01), reference_ids=NULL)
 }
 
 #######################################################
+###  function to update transition specific random effects
+#######################################################
+#' @export
+update_msm_random_effects <- function(params, dat) {
+  nms <- names(params[['l']])
+  shape <- rep(0,length(nms))
+  names(shape) <- nms
+  if (!is.null(reference_ids)) {
+    ii <- reference_ids
+    ts <- tapply(dat$status[ii],dat$jkg_index[ii],sum)
+  } else {
+    ts <- dat$ncases_by_jkg
+  }
+  shape[nms] <- ts[nms]
+  wh <- compute_haz(params, dat, at_quadrature = T, without='h0')
+  whc <- tapply(wh,dat$Q$jkg_index,sum)
+  rate <- rep(0,length(nms))
+  names(rate) <- nms
+  rate[names(whc)] <- whc
+  out <- sapply(1:length(shape),function(x){
+       rgamma(1,shape=shape[x]+prior[1],rate=rate[x]+prior[2])})
+  if (any(out<=0)) out[which(out<=0)] <- 1e-30
+  names(out) <- nms
+  return(out)
+}
+
+#######################################################
 ###  identify the function to approximate the density
 #######################################################
 #' @export
 identify_approx_function <- function(which_par) {
-  if (length(grep('a_',which_par))>0) out <- f_association_approximated
+    out <- NULL
+    if (length(grep('a_',which_par))>0) out <- f_association_approximated
     if (which_par=='beta') out <- f_beta_approximated
     if (which_par=='intercept' | which_par=='slope') out <- f_lmm_random_effects_approximated
     if (which_par=='eta') out <- f_eta_approximated
-    if (which_par=='kappa') out <- f_kappa_approximated
+    if (length(grep('w_',which_par))>0) out <- f_w_approximated
     ##   added 12Jun2025
     if (which_par=='lmm_corr_random_effects') out <- f_lmm_corr_random_effects_approximated
+    if (is.null(out)) stop('no approximation function has been selected')
     return(out)
 }
     
@@ -527,66 +650,79 @@ auto_mode_finder <- function(which_par, start_x0, params, dat) {
     sp <- gmrf_settings$search_points
     xv <- seq(xr[1],xr[2],length.out=sp)
     
-  ##   identify the function to approximate the density
-  f <- identify_approx_function(which_par)
+    ##   identify the function to approximate the density
+    f <- identify_approx_function(which_par)
 
-  ##   initialise counter
-    iter <- 0
-    ##   get starting values
-    x0 <- NULL
-    if (which_par!='lmm_corr_random_effects') {
-        nm <- names(start_x0)
-        x0 <- start_x0
-    } else {
-        sb <- dat$subject
-        x0 <- cbind(params[['u']][sb],params[['d']][sb])
-        rownames(x0) <- sb
-    }
-    current_x0 <- x0
-    continue <- TRUE
-    ##store_x0 <- NULL
-    ##   carry out Newton-Raphson
-    while (continue) {
-      ##   get the new positions
-        ##--- before 05Jun2025
-      ## d <- f(xv,x0,params,dat,which_par)$d
-      ## new_x0 <- apply(d,2,function(xx){xv[which.max(xx)]})
-      ##   modified on 05Jun2025
-      ff <- f(xv,current_x0,params,dat,which_par)
+    ##   initialise counter
+      iter <- 0
+      ##   get starting values
+      x0 <- NULL
+      if (which_par!='lmm_corr_random_effects') {
+          if (length(grep('w_',which_par))>0) {
+            x0 <- start_x0
+          } else {
+            nm <- names(start_x0)
+            x0 <- start_x0
+          }
+      } else {
+          sb <- dat$subject
+          x0 <- cbind(params[['u']][sb],params[['d']][sb])
+          rownames(x0) <- sb
+      }
+      current_x0 <- x0
+      continue <- TRUE
+      store_x0 <- NULL
+      ##   carry out Newton-Raphson
+      while (continue) {
+        ##   get the new positions
+          ##--- before 05Jun2025
+        ## d <- f(xv,x0,params,dat,which_par)$d
+        ## new_x0 <- apply(d,2,function(xx){xv[which.max(xx)]})
+        ##   modified on 05Jun2025
+        ff <- f(xv,current_x0,params,dat,which_par)
         new_x0 <- ff$eta_next
         if (which_par!='lmm_corr_random_effects') {
-          names(new_x0) <- nm
-          dev1 <- ff$dev1
-          dev2 <- ff$dev2
-      } else {
-        m <- ff$m
-          V <- ff$V
-      }
+            if (length(grep('w_',which_par))>0) {
+                m <- ff$m
+                V <- ff$V
+            } else {
+                names(new_x0) <- nm
+                dev1 <- ff$dev1
+                dev2 <- ff$dev2
+            }
+        } else {
+            m <- ff$m
+            V <- ff$V
+        }
         ##   calculate absolute relative error (in 100%)
         err <- c(abs((current_x0-new_x0)/new_x0)*100)
         ##   update counter
         iter <- iter + 1
         ##   continue or stop
         if (all(err[which(new_x0!=0)]<=gmrf_settings$eps)) {
-          ##   all reached maximum
-          continue <- FALSE
+            ##   all reached maximum
+            continue <- FALSE
         } else {
-          ##   some have not reached maximum
-          if (iter==gmrf_settings$max_iters) {
-              ##   max. iteration reached
-              continue <- FALSE
-              stop('max iteration reached but some still not at maximum')
-          }
+            ##   some have not reached maximum
+            if (iter==gmrf_settings$max_iters) {
+                ##   max. iteration reached
+                continue <- FALSE
+                stop('max iteration reached but some still not at maximum')
+            }
         }
         ##   continue or not, update the positions
-      current_x0 <- new_x0
-      ##store_x0 <- rbind(store_x0,new_x0)
-    }
+        current_x0 <- new_x0
+        store_x0 <- rbind(store_x0,new_x0)
+      }
     if (which_par!='lmm_corr_random_effects') {
-      out <- list(x=current_x0,iter=iter,abs_err100=err,dev1=dev1,dev2=dev2)
-  } else {
-    out <- list(x=current_x0,iter=iter,abs_err100=err,m=m,V=V)
-  }
+      if (length(grep('w_',which_par))>0) {
+          out <- list(x=current_x0,iter=iter,abs_err100=err,m=m,V=V)
+      } else {
+          out <- list(x=current_x0,iter=iter,abs_err100=err,dev1=dev1,dev2=dev2)
+      }
+    } else {
+        out <- list(x=current_x0,iter=iter,abs_err100=err,m=m,V=V)
+    }
     return(out)
 }
 
@@ -604,18 +740,18 @@ sample_at_opt_mode_univariate <- function(opt) {
 sample_at_opt_mode_multivariate <- function(opt) {
   mx <- opt$x
   V <- opt$V
-  tmp <- check_positive_definiteness(opt$V)  ##  check positive defininteness
-  sx <- NULL
-  for (i in 1:nrow(mx)) {
-        s <- c(MASS::mvrnorm(1,mx[i,],V[i,,]))
-        sx <- rbind(sx,s)
-    }
-    out <- list(mean=mx,V=V,x=sx)
+  s <- c(MASS::mvrnorm(1,mx,V))
+  out <- list(mean=mx,V=V,x=s)
   return(out)
 }
 
 #' @export
 check_positive_definiteness <- function(V) {
+  if (length(dim(V))==2) {
+    tmp <- array(0,c(1,dim(V)))
+    tmp[1,,] <- V
+    V <- tmp
+  }
   c1 <- which(signif(V[,1,2],digits=10)!=signif(V[,2,1],digits=10))
   dtm <- V[,1,1]*V[,2,2] - V[,1,2]*V[,2,1]
   c2 <- which(dtm<=0)
@@ -678,25 +814,42 @@ gmrf_sampling <- function(which_par, params, dat) {
     if (which_par=='slope') pp <- 'd'
     if (length(grep('a_',which_par))>0) pp <- which_par
     if (which_par=='beta') pp <- which_par
+    is_cty_random <- FALSE
+    if (length(grep('w_',which_par))>0) is_cty_random <- TRUE
     if (which_par=='lmm_corr_random_effects') {
         pp <- which_par
         start_x0 <- NULL
     } else {
-        start_x0 <- params[[pp]]
+        if (is_cty_random) {
+            #  random effects on an MSM transition
+            pp <- 'w'
+            which_jk <- sub(pp,'',which_par)
+            start_x0 <- params[[pp]][grep(which_jk,names(params[['w']]))]
+        } else {
+            start_x0 <- params[[pp]]
+        }
     }
+
     ##   find the modes via Newton-Raphson
     opt_x <- auto_mode_finder(which_par, start_x0, params, dat)
     ##   sample based on the modes
-  if (which_par!='lmm_corr_random_effects') {
-    xs <- sample_at_opt_mode_univariate(opt_x)
-    names(xs$x) <- names(start_x0)
-    out <- list(mean=xs$mean,sd=xs$sd,x=xs$x)
-  } else {
-    v_check <- check_positive_definiteness(opt_x$V)  ##  check positive definiteness
-    if (!is.null(v_check$msg)) report_problems(v_check, dat)
-    xs <- sample_at_opt_mode_multivariate_faster(opt_x)
-    out <- list(mean=xs$mean,V=xs$V,x=xs$x)
-  }
+    if (which_par!='lmm_corr_random_effects') {
+      if (!is_cty_random) {
+        xs <- sample_at_opt_mode_univariate(opt_x)
+        names(xs$x) <- names(start_x0)
+        out <- list(mean=xs$mean,sd=xs$sd,x=xs$x)
+      } else {
+        v_check <- check_positive_definiteness(opt_x$V)  ##  check positive definiteness
+        if (!is.null(v_check$msg)) report_problems(v_check, dat)
+        xs <- sample_at_opt_mode_multivariate(opt_x)
+        out <- list(mean=xs$mean,V=xs$V,x=xs$x)
+      }
+    } else {
+      v_check <- check_positive_definiteness(opt_x$V)  ##  check positive definiteness
+      if (!is.null(v_check$msg)) report_problems(v_check, dat)
+      xs <- sample_at_opt_mode_multivariate_faster(opt_x)
+      out <- list(mean=xs$mean,V=xs$V,x=xs$x)
+    }
     return(out)
 }
 

@@ -55,6 +55,12 @@ gather_update_setting <- function(dat, model_spec) {
   ##   update weibull scale?
   out$update_logdel <- FALSE
   if (model_spec$weibull_baseline) out$update_logdel <- TRUE
+
+  out$update_msm_random <- out$update_msm_random_SD <- FALSE
+  if (model_spec$include_msm_random) {
+    out$update_msm_random <- TRUE
+    out$update_msm_random_SD <- TRUE
+  }
   return(out)
 }
 
@@ -122,6 +128,18 @@ get_parameters <- function(dat, model_spec) {
             params[['m_d']] <- 0
         }
     }
+    ####################################################
+    ##   IID random effects on each MSM transition
+    ####################################################
+    if (model_spec$include_msm_random) {
+        params[['w']] <- rep(0,dat$nctys*length(ats))
+        nms <- NULL
+        for (icty in 1:dat$nctys) nms <- c(nms,paste0(icty,'_',ats))
+        names(params[['w']]) <- nms
+        #   random effect SD per transition
+        params[['sd_w']] <- rep(0.3,length(ats))
+        names(params[['sd_w']]) <- ats
+    }
     return(params)
 }
 
@@ -147,6 +165,14 @@ initialise_parameters <- function(dat, params, model_spec, update_setting) {
     out[['l']] <- update_baseline(out, dat, c(0.01,0.01))
     if (update_setting$update_fixed_effects)
         out[['beta']] <- gmrf_sampling('beta', out, dat)$x
+    if (model_spec$include_msm_random) {
+        for (jk in model_spec$transitions_with_random) {
+            which_par <- paste0('w_',jk)
+            pms <- paste0(1:dat$nctys,'_',jk)
+            out[['w']][pms] <- gmrf_sampling(which_par, out, dat)$x
+            out[['sd_w']][jk] <- sd(out[['w']][pms])
+        }
+    }
     return(out)
 }
 

@@ -67,6 +67,9 @@ model_spec$beta_by_transitions <- list(x1=ats,
 ##   the setting below corresponds to two age intervals, [50, 70) and [70,150]
 model_spec$age_range <- c(50,150)
 model_spec$age_cuts <- c(70)
+
+## --- include transition specific IID random effects?
+model_spec$include_msm_random <- FALSE
 #################################
 ##   end user input
 #################################
@@ -175,6 +178,9 @@ model_spec$age_range <- c(0,1500)
 model_spec$age_cuts <- NULL
 ##   person ID that links the event history data to the longitudinal data
 model_spec$PID <- 'id'
+
+## --- include transition specific IID random effects?
+model_spec$include_msm_random <- FALSE
 ####################
 ##   end user input
 ####################
