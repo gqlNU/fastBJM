@@ -315,7 +315,7 @@ model_spec$which_longvar <- 'y'
 ##   aps <- c('a_1','a_2'): a quadratic function of the current value with the transition intensities
 ##   aps <- c('a_1')      : a linear function of the current value with the transition intensities
 ##   aps <- NULL          : for a separate analysis of the two submodels
-model_spec$aps <- c('a_1','a_2')
+model_spec$aps <- NULL  #  suppress the survival-longitudinal link (i.e. fixing all association parameters at 0)
 model_spec$a1p <- ats
 model_spec$a2p <- ats
 ## --- fixed effects on the transition intensities
@@ -370,7 +370,7 @@ inits <- initialise_parameters(fitdata, params, model_spec, update_setting)
 
 
 ##   carry out MCMC update (for illustration only)
-niters <- 2
+niters <- 10
 res <- mcmc_update(fitdata, inits, niters, model_spec, update_setting)
 sims.list <- res$sims.list
 current_pars <- res$current_pars
