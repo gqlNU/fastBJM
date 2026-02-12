@@ -290,7 +290,7 @@ $$
 \lambda^{(jk)}_i(t)=\lambda^{(jk)}_0(t)\cdot e^{\boldsymbol{X}_i\boldsymbol{\beta}^{(jk)} + w_{c[i]}^{(jk)}}
 $$
 
-where $\boldsymbol{w}^{(jk)}=(w^{(jk)}_c, c=1,...,C)$ is a set of country-specific exchangeable random effects. For each transition, $w^{(jk)}_c \sim N(0,\tau^{(jk)})$ and $\tau^{(jk)}$ is the transition specific random effect precision.
+where $\boldsymbol{w}^{(jk)}=(w^{(jk)}_c, c=1,...,C)$ is a set of country-specific exchangeable random effects. For each transition, $w^{(jk)}_c \sim N(0,\tau^{(jk)})$ and $\tau^{(jk)}$ is the transition specific random effect precision. This formulation is similar to the piecewise exponential survival models with mixed effects in [Austin (2017)](https://onlinelibrary.wiley.com/doi/10.1111/insr.12214).
 
 <details>
 <summary> R code to fit a five-state joint model with exchangeable random effects on each transition</summary>
