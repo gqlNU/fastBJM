@@ -285,10 +285,12 @@ The longitudinal measurements for this person are stored under the column `y` in
 ## Example 3: A joint model with exchangeable random effects on each MSM transition <font color='orange'>(for illustration only)</font>
 
 The example is motivated by the analysis of the health state transitions using the SHARE data across various countries. The use of country-specific random effects on each transition allows information to be shared when estimating the transition rates, thus resulting in reliable country-specific estimates. The transition rates take the form:
+
 $$
-\lambda^{(jk)}_i(t)=\lambda^{(jk)}_0(t)\cdot e^{\boldsymbol{X}_i\boldsymbol{\beta}^{(jk)} + w^{(jk)}_{c[i]}}
+\lambda^{(jk)}_i(t)=\lambda^{(jk)}_0(t)\cdot e^{\boldsymbol{X}_i\boldsymbol{\beta}^{(jk)} + w_{c[i]}^{(jk)}}
 $$
-where $\boldsymbol{w}^{(jk)}=\{w^{(jk)}_c, c=1,...,C\}$ is a set of country-specific exchangeable random effects. For each transition, $w^{(jk)}_c \sim N(0,\tau^{(jk)})$ and $\tau^{(jk)}$ is the transition specific random effect precision.
+
+where $\boldsymbol{w}^{(jk)}=(w^{(jk)}_c, c=1,...,C)$ is a set of country-specific exchangeable random effects. For each transition, $w^{(jk)}_c \sim N(0,\tau^{(jk)})$ and $\tau^{(jk)}$ is the transition specific random effect precision.
 
 <details>
 <summary> R code to fit a five-state joint model with exchangeable random effects on each transition</summary>
