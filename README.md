@@ -110,6 +110,7 @@ To illustrate, the code below fits the six-states model for leukemia patients af
 ```R
 library('mstate')
 library('fastBJM')
+library("flexsurv")
 
 ################################################################################
 ##   the code for mstate fit
@@ -130,7 +131,6 @@ msebmt <- msprep(data = ebmt4, trans = tmat,
                  keep = c("match", "proph", "year", "agecl"))
 msebmt[msebmt$id == 2, ]
 
-library("flexsurv")
 n_trans <- max(tmat, na.rm = TRUE)
 fits_exp <- vector(mode = "list", length = n_trans)
 msebmt$years <- msebmt$time/365.25
