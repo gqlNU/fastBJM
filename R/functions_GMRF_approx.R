@@ -3,9 +3,9 @@
 ########################################
 #' @export
 extract_jk_x <- function(xn) {
-	tmp <- strsplit(xn,'_')[[1]]
-	out <- list(jk=tmp[2],xc=tmp[1])
-	return(out)
+    tmp <- strsplit(xn,'_')[[1]]
+    out <- list(jk=tmp[2],xc=tmp[1])
+    return(out)
 }
 
 
@@ -23,11 +23,11 @@ f_beta_approximated <- function(bx,bx0,params,dat,which_par='') {
   hr <- as.numeric(tapply(hq,dat$Q$row_id,sum))
   ##   go through each beta
   for (xn in nms) {
-  	this_x <- extract_jk_x(xn)  ##  extract name and jk
-  	jk <- this_x$jk
-  	xc <- this_x$xc
-  	tv <- dat$trans_indicators[,jk]  ##  which transition it's involved with
-  	pp <- xn
+    this_x <- extract_jk_x(xn)  ##  extract name and jk
+    jk <- this_x$jk
+    xc <- this_x$xc
+    tv <- dat$trans_indicators[,jk]  ##  which transition it's involved with
+    pp <- xn
     xt <- dat$X[,xc]  ##   the X values
     #  first and second derivatives of the full conditionals calculated at bx0
     dvll <- sum(status*tv*xt) - sum(hr*tv*xt)
@@ -69,7 +69,7 @@ f_lmm_random_effects_exact <- function(bx,bx0,params,dat,which_lmm_part) {
     ##    longitudinal measurements at quadrature
     lvq <- compute_longitudinal_effects(pm0,dat,at_quadrature=T,include_association_par=F)[,1]
 
-	full_a1 <- full_a2 <- rep(0,dat$NTS)
+  full_a1 <- full_a2 <- rep(0,dat$NTS)
     names(full_a1) <- names(full_a2) <- dat$transitions_to_analyse
     full_a1[names(pm0[['a_1']])] <- pm0[['a_1']]
     full_a2[names(pm0[['a_2']])] <- pm0[['a_2']]
@@ -120,16 +120,17 @@ f_lmm_random_effects_exact <- function(bx,bx0,params,dat,which_lmm_part) {
 
 
 
+
 ########################################
 ####  random effects in longitudinal
 ########################################
 #' @export
 f_lmm_random_effects_approximated <- function(bx,bx0,params,dat,which_lmm_part) {
-	##   ===  updated on 05Jun2025
-	##   rectified the mistake of not carrying out the product rule
-	##   in deriving the second derivative
-	##   (i.e. d(f(d[i])*exp(g(d[i])))/d(d[i]))
-	##
+  ##   ===  updated on 05Jun2025
+  ##   rectified the mistake of not carrying out the product rule
+  ##   in deriving the second derivative
+  ##   (i.e. d(f(d[i])*exp(g(d[i])))/d(d[i]))
+  ##
     status <- dat$status
     t_ms_t0 <- t_ms_t02 <- t_ms_t0q <- t_ms_t02q <- 1
     if (which_lmm_part=='intercept') pp <- 'u'
@@ -151,7 +152,7 @@ f_lmm_random_effects_approximated <- function(bx,bx0,params,dat,which_lmm_part) 
     ##    longitudinal measurements at quadrature
     lvq <- compute_longitudinal_effects(pm0,dat,at_quadrature=T,include_association_par=F)[,1]
 
-	full_a1 <- full_a2 <- rep(0,dat$NTS)
+  full_a1 <- full_a2 <- rep(0,dat$NTS)
     names(full_a1) <- names(full_a2) <- dat$transitions_to_analyse
     full_a1[names(pm0[['a_1']])] <- pm0[['a_1']]
     full_a2[names(pm0[['a_2']])] <- pm0[['a_2']]
@@ -269,47 +270,10 @@ f_association_approximated <- function(bx,bx0,params,dat,which_par='') {
     ##   Newton-Raphson to find eta such that
     ##   the first derivative is 0 (see p. 169 Rue and Held 2005)
     eta_next <- bx0 - dev1/dev2
-	out <- list(eta_next=eta_next,dev1=dev1,dev2=dev2)
+      out <- list(eta_next=eta_next,dev1=dev1,dev2=dev2)
     return(out)
 }
 
-########################################
-####  country-level random effects in MSM
-########################################
-#' @export
-f_eta_approximated <- function(bx,bx0,params,dat,which_par='') {
-  pp <- 'eta'
-  ats <- dat$transitions_to_analyse
-  QD <- dat$Q
-  pm0 <- params
-  nms <- names(bx0)
-  pm0[[pp]][nms] <- bx0[nms]
-  status <- dat$status
-  npms <- dat$nctys
-  dev1 <- dev2 <- rep(0,length(bx0))
-  names(dev1) <- names(dev2) <- nms
-
-  hq <- compute_haz(pm0,dat,at_quadrature = T,include_quadweights = T)
-  hr <- as.numeric(tapply(hq,dat$Q$row_id,sum))
-  for (k in ats) {
-    tv <- dat$trans_indicators[,k]
-    for (ix in 1:npms) {
-      xt <- dat$cty_dummy[,ix]
-      pp <- paste0('cty',ix,'_',k)
-      #  first and second derivatives of the full conditionals calculated at bx0
-      dvll <- sum(status*tv*xt) - sum(hr*tv*xt)
-      dev1[pp] <- dvll - 1/100^2*bx0[pp]
-      dvll <- - sum(hr*tv*xt^2)
-      dev2[pp] <- dvll - 1/100^2
-    }
-  }
-  ##   added on 05Jun2025
-  ##   Newton-Raphson to find eta such that
-  ##   the first derivative is 0 (see p. 169 Rue and Held 2005)
-  eta_next <- bx0 - dev1/dev2
-  out <- list(eta_next=eta_next,dev1=dev1,dev2=dev2)
-  return(out)
-}
 
 ########################################
 ####  correlated intercept and slope
@@ -331,31 +295,52 @@ f_lmm_corr_random_effects_approximated <- function(bx,bx0,params,dat,which_par='
     pm0 <- params
     bx0_0 <- pm0[['u']]
     bx0_1 <- pm0[['d']]
+    beta_lmm <- pm0[['beta_lmm']]
+    A0 <- dat$A0
+    A0u <- dat$A0_uniq 
 
-    ##-#####################
-    ##   from prior
-    ##-#####################
+    ##-###############################################################
+    ##   from prior (including the LMM fixed effect)
+    ##-###############################################################
+    Q_D11 <- pm0[['Q_D']][1,1]
+    Q_D22 <- pm0[['Q_D']][2,2]
+    Q_D12 <- pm0[['Q_D']][1,2]
+    Q_D21 <- pm0[['Q_D']][2,1]
+
     Q_D <- array(0,c(npds,2,2))  #  precision matrix
     Q_D[,1,1] <-  pm0[['Q_D']][1,1]
     Q_D[,2,2] <-  pm0[['Q_D']][2,2]
     Q_D[,1,2] <- Q_D[,2,1] <-  pm0[['Q_D']][1,2]
+
     B <- array(0,c(npds,2))      #  mean vector
-    B[,1] <- pm0[['B']][1]
+    B[,1] <- pm0[['B']][1] + beta_lmm * A0u
     B[,2] <- pm0[['B']][2]
-    Qb_t <- t(c(pm0[['Q_D']][1,1]*pm0[['B']][1] + pm0[['Q_D']][1,2]*pm0[['B']][2],
-                pm0[['Q_D']][2,1]*pm0[['B']][1] + pm0[['Q_D']][2,2]*pm0[['B']][2]
-                ))
-    Qb <- array(0,c(npds,2))
-    Qb[,1] <- Qb_t[1]
-    Qb[,2] <- Qb_t[2]
-    m_D <- Qb
+    QB <- cbind(Q_D11 * B[,1] + Q_D12 * B[,2],
+                Q_D21 * B[,1] + Q_D22 * B[,2])
+    m_D <- QB
+
+#    Qb_t <- t(c(pm0[['Q_D']][1,1]*B[,1] + pm0[['Q_D']][1,2]*B[,2],
+#                pm0[['Q_D']][2,1]*B[,1] + pm0[['Q_D']][2,2]*B[,2]
+#                ))
+#    Qb <- array(0,c(npds,2))
+#    Qb[,1] <- Qb_t[1]
+#    Qb[,2] <- Qb_t[2]
+#    m_D <- Qb
 
     ##-#####################
-    ##   from LMM
+    ##   from LMM 
     ##-#####################
     tau_y <- 1/pm0[['sd_y']]^2
+    m_y <- tau_y * (dat$sumlong[['m_y']])
     Q_y <- tau_y * dat$sumlong[['Q_y']]
-    m_y <- tau_y * dat$sumlong[['m_y']]
+    
+    #  added 13Jul2026 with age at entry as fixed effect
+#    m1 <- dat$sumlong$n * beta_lmm * dat$sumlong$A0
+#    m2 <- dat$sumlong$sum_h * beta_lmm * dat$sumlong$A0
+#    adj <- cbind(m1,m2)
+
+#    m_y <- tau_y * (dat$sumlong[['m_y']]) - adj)
+#    Q_y <- tau_y * dat$sumlong[['Q_y']]
 
     ##-#######################################
     ##   from MSM
@@ -369,7 +354,7 @@ f_lmm_corr_random_effects_approximated <- function(bx,bx0,params,dat,which_par='
     lvq <- compute_longitudinal_effects(pm0,dat,at_quadrature=T,include_association_par=F)[,1] ##   CV
     lvq2 <- compute_longitudinal_effects(pm0,dat,at_quadrature=T,include_association_par=F)[,2]##   CV^2
     ##   extract association parameter
-	full_a1 <- full_a2 <- rep(0,dat$NTS)
+    full_a1 <- full_a2 <- rep(0,dat$NTS)
     names(full_a1) <- names(full_a2) <- dat$transitions_to_analyse
     full_a1[names(pm0[['a_1']])] <- pm0[['a_1']]
     full_a2[names(pm0[['a_2']])] <- pm0[['a_2']]
@@ -444,9 +429,9 @@ f_lmm_corr_random_effects_approximated <- function(bx,bx0,params,dat,which_par='
     ##-#####################
 ##    ids <- which(d2fdx2>0 | d2fdy2>0)
 ##    if (length(ids)>0) {
-##    	d2fdx2[ids] <- 
-##    	d2fdy2[ids] <- 
-##    	d2fdxdy[ids] <- 0
+##      d2fdx2[ids] <- 
+##      d2fdy2[ids] <- 
+##      d2fdxdy[ids] <- 0
 ##    }
 
     ##   the Q matrix, the precision matrix, from the MSM part
@@ -485,14 +470,14 @@ f_lmm_corr_random_effects_approximated <- function(bx,bx0,params,dat,which_par='
     V <- inv2x2matrix_vectorised(Q)
     ids <- which(V[,1,1]<0 | V[,2,2]<0)
     if (length(ids)>0) {
-    	for (ii in ids) {
-    		##   remove contribution from the MSM data 
-    		##   when constructing the proposal distribution
-    		Q[ii,,] <- Q_D[ii,,] + Q_y[ii,,]
-    		V[ii,,] <- MASS::ginv(Q[ii,,])
-    		m[1,ii] <- m_D[ii,1] + m_y[ii,1]
-    		m[2,ii] <- m_D[ii,2] + m_y[ii,2]
-    	}
+        for (ii in ids) {
+            ##   remove contribution from the MSM data 
+            ##   when constructing the proposal distribution
+            Q[ii,,] <- Q_D[ii,,] + Q_y[ii,,]
+            V[ii,,] <- ginv(Q[ii,,])
+            m[1,ii] <- m_D[ii,1] + m_y[ii,1]
+            m[2,ii] <- m_D[ii,2] + m_y[ii,2]
+        }
     }    
     eta_next <- fast_dotp(m,V)
     out <- list(eta_next=eta_next,m=m,V=V,Q=Q)
@@ -501,20 +486,31 @@ f_lmm_corr_random_effects_approximated <- function(bx,bx0,params,dat,which_par='
 
 #' @export
 fast_dotp <- function(m,V) {
+    if (nrow(m)!=2) stop('the dimension of m is wrong - should be 2 x npids!') #  added 08Sep2026
     i1 <- m[1,]*V[,1,1] + m[2,]*V[,2,1]
     i2 <- m[1,]*V[,1,2] + m[2,]*V[,2,2]
     out <- cbind(i1,i2)
     return(out)
 }
 
+
 #' @export
 inv2x2matrix_vectorised <- function(vm) {
     out <- vm
-    out[,1,1] <- vm[,2,2]
-    out[,2,2] <- vm[,1,1]
-    out[,1,2] <- out[,2,1] <- -vm[,1,2]
-    d <- 1/(vm[,1,1]*vm[,2,2] - vm[,1,2]^2)
-    out <- d*out
+    if (T) {
+        out[,1,1] <- vm[,2,2]
+        out[,2,2] <- vm[,1,1]
+        out[,1,2] <- out[,2,1] <- -vm[,1,2]
+        d <- 1/(vm[,1,1]*vm[,2,2] - vm[,1,2]^2)
+        out <- d*out
+        #  patch singular matrices (if any)    #  added 08Sep2026
+        idx <- which(d>1e5)
+        if (length(idx)>0) {
+            print(idx)
+            for (i in idx) out[i,,] <- MASS::ginv(vm[i,,])
+        }
+    }
+    if (F) for (i in 1:dim(vm)[1]) out[i,,] <- MASS::ginv(vm[i,,])
     return(out)
 }
 
@@ -524,119 +520,4 @@ same_elements <- function(x, eps=0.001) {
   d <- abs((x-x[1])/x[1])
   if (any(d>eps)) out <- F
   return(out)
-}
-
-#' @export
-obtain_IGMRF_Q <- function(n, s, vs=1e-10) {
-#  on entry: 
-#     n  = number of random effects
-#     s  = (conditional) standard derivation
-#     vs = a very small value assigned to the off-diagonals of the identity matrix
-#          (default value = 1e-10)
-    A <- matrix(vs,nrow=n,ncol=n)
-    tau <- 1/s^2
-    diag(A) <- tau
-    E <- eigen(A)
-    V <- E$vectors
-    l <- E$values[2:n]
-    tildeLambda <- diag(c(0,l))
-    tildeQ <- V%*%tildeLambda%*%t(V)
-    ##   quality control
-    if (!same_elements(V[,1])) stop('not all the elements in e1 are the same')
-    if (!same_elements(l)) {
-        stop('not all eigenvalues are the same')
-    } else {
-        if (!same_elements(c(tau,l))) stop('the eigenvalues should be the same as the precision')
-    }
-    out <- list(tildeLambda=tildeLambda, tildeQ=tildeQ, l=l[1], V=V)
-    return(out)
-}
-
-#' @export
-f_w_approximated <- function(bx,bx0,params,dat,which_par='') {
-  which_jk <- sub('w_','',which_par)
-  QD <- dat$Q
-  pm0 <- params
-  nms <- names(bx0)
-  pm0[['w']][nms] <- bx0[nms]
-  status <- dat$status
-
-  hq <- compute_haz(pm0,dat,at_quadrature = T,include_quadweights = T)
-  hr <- as.numeric(tapply(hq,dat$Q$row_id,sum))
-  
-  dfdw2 <- array(0, dat$nctys)
-  for (icty in 1:dat$nctys) {
-    dfdw2[icty] <- sum(hr[which(dat$jkc_index==paste0(icty,'_',which_jk))])
-  }
-  tildeQ <- obtain_IGMRF_Q(dat$nctys,1/sqrt(pm0[['sd_w']][which_jk]))$tildeQ
-
-  A <- matrix(1,ncol=dat$nctys,nrow=1)
-  E <- 0
-  Q <- diag(dfdw2) + tildeQ
-  ncases <- dat[['ncases_by_jkc']][paste0(1:dat$nctys,'_',which_jk)]
-  m <- ncases - dfdw2 + dfdw2*pm0[['w']][paste0(1:dat$nctys,'_',which_jk)]
-  m <- matrix(m,ncol=1)
-
-  iQ <- MASS::ginv(Q)
-  mu <- iQ%*%m  
-  mu_star <- mu - iQ%*%t(A)%*%MASS::ginv(A%*%iQ%*%t(A))%*%(A%*%mu-E)
-  s_star <- iQ - iQ%*%t(A)%*%MASS::ginv(A%*%iQ%*%t(A))%*%(A%*%iQ)
-
-  mu_star <- mu_star[,1]
-  eta_next <- mu_star
-  names(eta_next) <- names(mu_star) <- nms
-
-  
-  out <- list(eta_next=eta_next,m=mu_star,V=s_star,Q=Q,ncases=ncases)
-  return(out)
-}
-
-#' @export
-logden_jump_msm_random <- function(xstar,pdist) {
-  xx <- matrix(xstar,ncol=1)
-  n <- length(xx)
-  mu_star <- matrix(pdist$m,ncol=1)
-  s_star <- pdist$V
-  ED <- eigen(s_star)
-  va <- ED$values
-  vas <- va
-  eps <- 1e-10
-  vas[which(va<eps)] <- 0
-  vas[which(va>eps)] <- 1/va[which(va>eps)]
-  ve <- ED$vectors
-  inv_s_star <- ve%*%diag(vas)%*%t(ve)
-  out <- -(n-1)/2*log(2*pi) - 1/2*sum(log(va[which(va>eps)])) - 
-                         1/2*t(xx-mu_star)%*%inv_s_star%*%(xx-mu_star)
-  return(as.numeric(out))
-}
-
-#' @export
-logden_exchangeable_s2z <- function(x,prec) {
-  #
-  #  p. 37 of Rue and Held 2005
-  #
-  n <- length(x)
-  A <- matrix(1,ncol=n,nrow=1)
-  E <- 0  #  sum to 0 constraint
-  tau <- prec
-  Q <- tau * diag(n)
-  mu <- matrix(0,nrow=n,ncol=1)
-
-  iQ <- MASS::ginv(Q)
-  mu_star <- mu - iQ%*%t(A)%*%MASS::ginv(A%*%iQ%*%t(A))%*%(A%*%mu-E)
-  s_star <- iQ - iQ%*%t(A)%*%MASS::ginv(A%*%iQ%*%t(A))%*%(A%*%iQ)
-
-  ##   log density at xx
-  xx <- matrix(x,nrow=n)
-  ED <- eigen(s_star)
-  va <- ED$values
-  vas <- va
-  eps <- 1e-10
-  vas[which(va<eps)] <- 0
-  vas[which(va>eps)] <- 1/va[which(va>eps)]
-  ve <- ED$vectors
-  eps <- 1e-10
-  inv_s_star <- ve%*%diag(vas)%*%t(ve)
-  out <- -(n-1)/2*log(2*pi) - 1/2*sum(log(va[which(va>eps)])) - 1/2*t(xx-mu_star)%*%inv_s_star%*%(xx-mu_star)
-  return(as.numeric(out))
 }
