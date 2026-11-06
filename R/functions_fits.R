@@ -19,17 +19,46 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
   pb <- txtProgressBar(min=0, max=niters, initial=0, style=3)
 
   for (iter in 1:niters) {
+
       ##-##################################################
       ##  age-specific baselines
       ##-##################################################
       if (update_setting$update_h0) {
           pp <- 'l'
-          x <- update_baseline(current_pars, data, prior=c(0.01,0.01))
+          x <- update_baseline(current_pars, fitdata, prior=c(0.01,0.01))
           nms <- names(x)
           current_pars[[pp]][nms] <- x[nms]
           sims.list[[pp]] <- rbind(sims.list[[pp]],current_pars[[pp]])
-          current_jpd <- log_posterior(current_pars, data)
+          current_jpd <- log_posterior(current_pars, fitdata)
       }
+
+      ##-##################################################
+      ##  age-specific Weibull shape
+      ##-##################################################  
+      if (update_setting$update_logdel) {
+          pp <- 'logdel'
+          for (which_jkg in paste0(ats,'g1')) {
+              propose_pars <- current_pars
+              propose_pars[[pp]][which_jkg] <- rnorm(1,current_pars[[pp]][which_jkg],0.05)
+              propose_jpd <- log_posterior(propose_pars,fitdata)
+              mh_factor <- dnorm(current_pars[[pp]][which_jkg],propose_pars[[pp]][which_jkg],0.05,log=T) - 
+                           dnorm(propose_pars[[pp]][which_jkg],current_pars[[pp]][which_jkg],0.05,log=T)
+              d <- propose_jpd - current_jpd + mh_factor
+
+              if (d>=0) {
+                  current_pars <- propose_pars
+                  current_jpd <- propose_jpd
+              } else {
+                  if (d>log(runif(1))) {
+                      current_pars <- propose_pars
+                      current_jpd <- propose_jpd
+                  }
+              }
+          }
+          pp <- 'logdel'
+          sims.list[[pp]] <- rbind(sims.list[[pp]],current_pars[[pp]])
+      }
+        
       ##-#########################################################
       ##   update intercepts and slopes (p. 169 in Rue and Held)
       ##-#########################################################
@@ -91,7 +120,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
           for (pp in c('u','d')) sims.list[[pp]] <- rbind(sims.list[[pp]],current_pars[[pp]])
       }
       ##-##########################
-      ##   update fixed effects
+      ##   update MSM fixed effects
       ##-##########################
       if (update_setting$update_fixed_effects) {
           pp <- 'beta'
@@ -149,70 +178,16 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
               sims.list[[pp]] <- rbind(sims.list[[pp]],c(current_pars[[pp]]))
           }
       }
-      ##-#########################################################
-      ##   update transition specific IID random effects
-      ##-#########################################################
-      if (update_setting$update_msm_random) {
-          pp <- 'w'
-          #   update each transition in turn
-          propose_pars <- current_pars
-          lq_top <- lq_bottom <- NULL
-          for (jk in model_spec$transitions_with_random) {
-            which_par <- paste0(pp,'_',jk)
-            pms <- paste0(1:fitdata$nctys,'_',jk)
-            upt <- gmrf_sampling(which_par,current_pars,data)
-            ustar <- upt$x
-            propose_pars[[pp]][pms] <- ustar[pms]
-            ##  q(ustar|u0)
-            tmp <- logden_jump_msm_random(ustar,upt[c('mean','V')])
-            lq_bottom <- c(lq_bottom,tmp)
-            ##  for q(u0|ustar)
-            upt_propose <- gmrf_sampling(which_par,propose_pars,data)
-            tmp <- logden_jump_msm_random(current_pars[[pp]][pms],upt_propose[c('mean','V')])
-            lq_top <- c(lq_top,tmp)
-            data$model_spec$byperson <- F
-            propose_jpd <- log_posterior(propose_pars,data)
-            d <- propose_jpd - current_jpd + sum(lq_top - lq_bottom)
-            if (d>=0) {
-                current_pars <- propose_pars
-                current_jpd <- propose_jpd
-            } else {
-                if (d>log(runif(1))) {
-                    current_pars <- propose_pars
-                    current_jpd <- propose_jpd
-                }
-            }
-          }
-          ##   store iteration
-          sims.list[[pp]] <- rbind(sims.list[[pp]],c(current_pars[[pp]]))
-      }
-      ##-#####################################################################
-      ##   MH update variance of the transition specific IID random effects
-      ##     log(sigma) ~ N(current, jump_sd)
-      ##-#####################################################################
-      if (update_setting$update_msm_random_SD) {
-        jump_sd <- model_spec$jump_sd
-        pp <- 'sd_w'
-        for (jk in model_spec$transitions_with_random) {
-          propose_pars <- current_pars
-          propose_pars[[pp]][jk] <- rlnorm(1,log(current_pars[[pp]][jk]),jump_sd[[pp]])
-          propose_jpd <- log_posterior(propose_pars,data)
-          ##  for q(u_current|u_proposed)
-          lq_top <- dlnorm(current_pars[[pp]][jk],log(propose_pars[[pp]][jk]),jump_sd[[pp]],log=T)
-          ##  for q(u_proposed|u_current)
-          lq_bottom <- dlnorm(propose_pars[[pp]][jk],log(current_pars[[pp]][jk]),jump_sd[[pp]],log=T)
-          d <- propose_jpd - current_jpd + lq_top - lq_bottom
-          if (d>=0) {
-            current_pars <- propose_pars
-            current_jpd <- propose_jpd
-          } else {
-            if (d>log(runif(1))) {
-              current_pars <- propose_pars
-              current_jpd <- propose_jpd
-            }
-          }
-        }
-        sims.list[[pp]] <- rbind(sims.list[[pp]],current_pars[[pp]])
+      ##-######################################
+      ##   Gibbs for longitudinal fixed effects
+      ##-######################################
+      if (update_setting$update_beta_lmm) {
+          pp <- 'beta_lmm'
+          #ss <- sample_beta_lmm(current_pars,fitdata)$x
+          ss <- sample_eta(current_pars,fitdata)$x
+          current_pars[[pp]] <- ss
+          sims.list[[pp]] <- c(sims.list[[pp]],current_pars[[pp]])
+          current_jpd <- log_posterior(current_pars,fitdata)
       }
       
       ##-##################################################
@@ -275,38 +250,48 @@ log_posterior <- function(params, dat) {
   #   MSM + LMM
   #################################
   l1 <- ll_msm(params,dat,byperson)
-  l2 <- 0
-  if (model_spec$joint) l2 <- ll_lmm(params,dat,byperson)
-  ll <- l1 + l2
+  l2 <- ll_lmm(params,dat,byperson)
+  if (model_spec$fitdata_type=='joint') ll <- l1 + l2
+  if (model_spec$fitdata_type=='msm_only') ll <- l1
+  if (model_spec$fitdata_type=='lmm_only') ll <- l2
 
   #################################
   #   prior contributions
   #################################
-  prs <- rep(0,20)
+  prs <- rep(0,15)
   #  age-specific baselines
   prs[1] <- sum(dgamma(params[['l']],shape=0.01,rate=0.01,log=T))
   if (model_spec$weibull_baseline) prs[1] <- prs[1] + sum(dunif(exp(params[['logdel']]),0.00001,5,log=T))  # added on 15Oct2025
   if (model_spec$include_fixed_effects) prs[2] <- sum(dnorm(params[['beta']],mean=0,sd=100,log=T))
+  if (model_spec$msm_by_country=='random') {
+    for (k in ats) {
+      sigma <- params[['sd_eta']][k]
+      #  sum-2-zero country random effects
+      prs[3] <- prs[3] + log_density_exchangeable_s2z(params[['eta']][paste0('cty',1:dat$nctys,'_',k)],sigma)
+      #  sum-2-zero country random effect SDs
+      prs[4] <- prs[4] + dgamma(1/sigma^2,shape=0.01,rate=0.01,log=T)
+    }
+  }
   if (model_spec$joint) {
       if (model_spec$lmm_correlated_random_effects) {
           ##   hyperparameters: mean vector
-          prs[5] <- emdbook::dmvnorm(c(params[['B']]),rep(0,2),10^2*diag(2),log=T)
+          prs[5] <- dmvnorm(c(params[['B']]),rep(0,2),100^2*diag(2),log=T)
           ##   hyperparameters: precision matrix
           rho <- 0
           s1 <- s2 <- 10
           V <- matrix(c(s1^2,rho*s1*s2,rho*s1*s2,s2^2),nrow=2)
-          prs[6] <- LaplacesDemon::dwishart(params[['Q_D']],nu=2,S=V,log=T)
+          prs[6] <- dwishart(params[['Q_D']],nu=2,S=V,log=T)
           ##   error SD
-          prs[7] <- dgamma(1/params[['sd_y']]^2,shape=0.01,rate=0.01,log=T)
+          prs[7] <- dgamma(1/params[['sd_y']]^2,shape=0.001,rate=0.001,log=T)
           ##  association parameters
           prs[8] <- sum(dnorm(unlist(params[grep('a_',names(params))]),0,100,log=T))
-          D <- round(MASS::ginv(params[['Q_D']]),digits=10)
+          D <- round(ginv(params[['Q_D']]),digits=10)
           B <- c(params[['B']])
           b <- cbind(params[['u']],params[['d']])
           ##   correlated intercept-slope
           ##     changed on 08Jul2025 using fastmvn
           ##prs1 <- apply(b,1,function(bi) {dmvnorm(c(bi),B,D,log=T)})  ## before 08Jul2025
-          prs1 <- mvnfast::dmvn(b,B,D,log=T)  ## much faster version
+          prs1 <- dmvn(b,B,D,log=T)  ## much faster version
           prs2 <- 0
           if (!byperson) prs[9] <- sum(prs1 + prs2)
       } else {
@@ -337,17 +322,19 @@ log_posterior <- function(params, dat) {
           }
       }
   }
-  if (model_spec$include_msm_random) {
-    #  random effects for each MSM transition
-    tmp_prs <- 0
-    for (jk in model_spec$transitions_with_random) {
-      which_pars <- grep(paste0('_',jk),names(params[['w']]))
-      pm <- params[['w']][which_pars]
-      precision <- 1/params[['sd_w']][jk]^2
-      tmp_prs <- tmp_prs + logden_exchangeable_s2z(pm,precision)
+  if (model_spec$msm_country_age) {
+    for (k in ats) {
+      sigma <- params[['sd_kappa']]
+      pms <- c(sapply(paste0('cty',1:dat$nctys,'_',k),function(xx){paste0(xx,'g',1:dat$nGs)}))
+      #  sum-2-zero country random effects
+      prs[13] <- prs[13] + log_density_exchangeable_s2z(params[['kappa']][pms],sigma)
+      #  sum-2-zero country random effect SDs
+      prs[14] <- prs[14] + dgamma(1/sigma^2,shape=0.01,rate=0.01,log=T)
     }
-    prs[20] <- tmp_prs
-    prs[19] <- sum(dunif(params[['sd_w']][model_spec$transitions_with_random],0.00001,10,log=T))
+    #  added on 13Jul2026
+    if (model_spec$update_beta_lmm) {
+      prs[15] <- dnorm(params[['beta_lmm']],mean=0,sd=100,log=T)
+    }
   }
   out <- ll + sum(prs)
   if (byperson) out <- out + prs1 + prs2
@@ -404,38 +391,30 @@ compute_longitudinal_effects <- function(params, dat, at_quadrature, include_ass
     jk_index <- dd$jk_index
     t_ms_t0 <- dd$t_ms_t0
 
-    ##   extract and format parameters
-    ##   a1 and a2 as in a1*CV and a2*CV^2 (CV=current value)
-    a1 <- a2 <- rep(0,dat$NTS)
-    names(a1) <- names(a2) <- dat$transitions_to_analyse
-    a1[names(params[['a_1']])] <- params[['a_1']]
-    a2[names(params[['a_2']])] <- params[['a_2']]
-    A <- cbind(a1[jk_index],
-               a2[jk_index])
+    A0 <- dd$A0
     ##   compute (standardised) longitudinal values
     u <- params[['u']][mergeid]
     d <- params[['d']][mergeid]
-    sv <- u + d*t_ms_t0
+    ##   added 13Jul2026
+    beta_lmm <- params[['beta_lmm']]
+    sv <- u + d*t_ms_t0# + beta_lmm * A0
+
     sv2 <- sv*sv
     ##   CV , CV^2 (CV=current value)
     out <- cbind(sv,sv2)
-    if (include_association_par) out <- rowSums(A*out)
+    if (include_association_par) {
+      ##   a1 and a2 as in a1*CV and a2*CV^2 (CV=current value)
+      a1 <- a2 <- rep(0,dat$NTS)
+      names(a1) <- names(a2) <- dat$transitions_to_analyse
+      a1[names(params[['a_1']])] <- params[['a_1']]
+      a2[names(params[['a_2']])] <- params[['a_2']]
+      a1_2 <- cbind(a1[jk_index],
+                    a2[jk_index])
+      out <- rowSums(a1_2*out)
+    }
     return(out)
 }
 
-#######################################################
-###  function to calculate the random effects on 
-###  MSM transitions on the log scale
-#######################################################
-#' @export
-compute_msm_random_effects <- function(params, dat, at_quadrature) {
-    ##   get the relevant data
-    dd <- dat
-    if (at_quadrature) dd <- dat$Q
-    jkc_index <- dd$jkc_index
-    out <- params[['w']][jkc_index]
-    return(out)
-}
 
 #######################################################
 ###  function to calculate the hazard ratios
@@ -445,19 +424,22 @@ compute_RR <- function(params, dat, at_quadrature) {
   model_spec <- dat$model_spec
   dd <- dat
   if (at_quadrature) dd <- dat$Q
-  bX <- aL <- eta <- w <- 0
+  bX <- aL <- eta <- kappa <- 0
   #  fixed effects
   if (model_spec$include_fixed_effects) bX <- compute_fixed_effects(params, dat, at_quadrature)
   #  longitudinal
   if (model_spec$joint) aL <- compute_longitudinal_effects(params, dat, at_quadrature, include_association_par=T)
-  #  random effects on MSM transition
-  if (model_spec$include_msm_random) w <- compute_msm_random_effects(params, dat, at_quadrature)
+  #  country-level random effects
+  if (model_spec$msm_by_country=='random') eta <- params[['eta']][dd$jkc_index]
+  #  age-country random effects
+  if (model_spec$msm_country_age) kappa <- params[['kappa']][dd$jkgc_index]
   #  putting all together
-  logRR <- bX + aL + eta + w
+  logRR <- bX + aL + eta + kappa
   #  return hazard ratios
   out <- exp(logRR)
   return(out)
 }
+
 
 #######################################################
 ###  function to calculate the baseline hazards
@@ -476,7 +458,6 @@ compute_baseline <- function(params, dat, at_quadrature) {
 ###  function to calculate the time-varying part in
 ###  the Weibull
 ###               i.e. del*t^(del-1)
-###    added on 15Oct2025
 #######################################################
 #' @export
 compute_baseline_weibull_timevarying <- function(params, dat, at_quadrature) {
@@ -484,16 +465,18 @@ compute_baseline_weibull_timevarying <- function(params, dat, at_quadrature) {
     dd <- dat
     if (at_quadrature) dd <- dat$Q
     jkg_index <- dd$jkg_index
-    t_ms_t0 <- dd$t_ms_t0
+    #t_ms_t0 <- dd$t_ms_t0
+
+#    t_cal <- dd$sojourn  #  this corresponds to clock reset
+    t_cal <- dd$t_weibull  #  this corresponds to clock reset
     
     del <- exp(params[['logdel']][jkg_index])
-    out <- del*t_ms_t0^(del-1)
+    out <- del*t_cal^(del-1)
     return(out)
 }
 
 #######################################################
 ###  function to calculate the transition hazards
-###   added h0_tv on 15Oct2025
 #######################################################
 #' @export
 compute_haz <- function(params, dat, at_quadrature, include_quadweights=T, without='') {
@@ -501,7 +484,8 @@ compute_haz <- function(params, dat, at_quadrature, include_quadweights=T, witho
   h0_tv <- compute_baseline_weibull_timevarying(params, dat, at_quadrature)
   RR <- compute_RR(params, dat, at_quadrature)
   out <- h0*RR*h0_tv
-  if (without=='h0') out <- RR*h0_tv
+  if (without=='h0') out <- RR*h0_tv  #  this excludes the lambda in Weibull
+  if (without=='h') out <- RR         #  this excludes the entire baseline hazard <= returns the RR only
   if (at_quadrature & include_quadweights) out <- out * dat$Q$w  #  multiplying quadrature weights
   return(out)
 }
@@ -518,11 +502,11 @@ ll_msm <- function(params, dat, byperson=FALSE) {
     tll1 <- tapply(log(ll1),dat$mergeid,sum)
 ##    ids <- sapply(dat$subject,function(x){which(names(tll1)==x)})
 ##    tll1 <- tll1[ids]
-    tll1 <- tll1[dat$subject]
+    tll1 <- tll1[dat$unique_mergeid]
     tll2 <- tapply(ll2,dat$Q$mergeid,sum)
 ##    ids <- sapply(dat$subject,function(x){which(names(tll2)==x)})
 ##    tll2 <- tll2[ids]
-    tll2 <- tll2[dat$subject]
+    tll2 <- tll2[dat$unique_mergeid]
     out <- tll1 - tll2
   } else {
     out <- sum(log(ll1)) - sum(ll2)
@@ -533,7 +517,6 @@ if (F) {
   dat <- all_fitdata
   ll_msm(params,dat)
 }
-
 
 #######################################################
 ###  function to calculate the longitudinal likelihood
@@ -547,14 +530,16 @@ ll_lmm <- function(params, dat, byperson=F) {
   mergeid <- dd$mergeid
   u <- params[['u']][mergeid] # intercepts
   d <- params[['d']][mergeid] # slopes
+
   m <- u + d*tt
+
   sy <- params[['sd_y']]
   ll <- dnorm(y,mean=m,sd=sy,log=T)
   if (byperson) {
     out <- tapply(ll,mergeid,sum)
     ##ids <- sapply(dat$subject,function(x){which(names(out)==x)})
     ##out <- out[ids]
-    out <- out[dat$subject]
+    out <- out[dat$unique_mergeid]
   } else {
     out <- sum(ll)
   }
@@ -588,50 +573,23 @@ update_baseline <- function(params, dat, prior=c(0.01,0.01), reference_ids=NULL)
   return(out)
 }
 
-#######################################################
-###  function to update transition specific random effects
-#######################################################
-#' @export
-update_msm_random_effects <- function(params, dat) {
-  nms <- names(params[['l']])
-  shape <- rep(0,length(nms))
-  names(shape) <- nms
-  if (!is.null(reference_ids)) {
-    ii <- reference_ids
-    ts <- tapply(dat$status[ii],dat$jkg_index[ii],sum)
-  } else {
-    ts <- dat$ncases_by_jkg
-  }
-  shape[nms] <- ts[nms]
-  wh <- compute_haz(params, dat, at_quadrature = T, without='h0')
-  whc <- tapply(wh,dat$Q$jkg_index,sum)
-  rate <- rep(0,length(nms))
-  names(rate) <- nms
-  rate[names(whc)] <- whc
-  out <- sapply(1:length(shape),function(x){
-       rgamma(1,shape=shape[x]+prior[1],rate=rate[x]+prior[2])})
-  if (any(out<=0)) out[which(out<=0)] <- 1e-30
-  names(out) <- nms
-  return(out)
-}
 
 #######################################################
 ###  identify the function to approximate the density
 #######################################################
 #' @export
 identify_approx_function <- function(which_par) {
-    out <- NULL
     if (length(grep('a_',which_par))>0) out <- f_association_approximated
     if (which_par=='beta') out <- f_beta_approximated
     if (which_par=='intercept' | which_par=='slope') out <- f_lmm_random_effects_approximated
     if (which_par=='eta') out <- f_eta_approximated
-    if (length(grep('w_',which_par))>0) out <- f_w_approximated
-    ##   added 12Jun2025
+    if (which_par=='kappa') out <- f_kappa_approximated
     if (which_par=='lmm_corr_random_effects') out <- f_lmm_corr_random_effects_approximated
-    if (is.null(out)) stop('no approximation function has been selected')
+    if (which_par=='beta_lmm') out <- f_lmm_beta_lmm_approximated
+    if (which_par=='logdel') out <- f_weibull_log_shape_approximated
     return(out)
 }
-    
+
 #######################################################
 ###  function to find the mode iteratively
 #######################################################
@@ -654,42 +612,33 @@ auto_mode_finder <- function(which_par, start_x0, params, dat) {
     f <- identify_approx_function(which_par)
 
     ##   initialise counter
-      iter <- 0
-      ##   get starting values
-      x0 <- NULL
-      if (which_par!='lmm_corr_random_effects') {
-          if (length(grep('w_',which_par))>0) {
-            x0 <- start_x0
-          } else {
-            nm <- names(start_x0)
-            x0 <- start_x0
-          }
-      } else {
-          sb <- dat$subject
-          x0 <- cbind(params[['u']][sb],params[['d']][sb])
-          rownames(x0) <- sb
-      }
-      current_x0 <- x0
-      continue <- TRUE
-      store_x0 <- NULL
-      ##   carry out Newton-Raphson
-      while (continue) {
+    iter <- 0
+    ##   get starting values
+    x0 <- NULL
+    if (which_par!='lmm_corr_random_effects') {
+        nm <- names(start_x0)
+        x0 <- start_x0
+    } else {
+        sb <- dat$unique_mergeid
+        x0 <- cbind(params[['u']][sb],params[['d']][sb])
+        rownames(x0) <- sb
+    }
+    current_x0 <- x0
+    continue <- TRUE
+    ##store_x0 <- NULL
+    ##   carry out Newton-Raphson
+    while (continue) {
         ##   get the new positions
           ##--- before 05Jun2025
-        ## d <- f(xv,x0,params,dat,which_par)$d
-        ## new_x0 <- apply(d,2,function(xx){xv[which.max(xx)]})
+          ## d <- f(xv,x0,params,dat,which_par)$d
+          ## new_x0 <- apply(d,2,function(xx){xv[which.max(xx)]})
         ##   modified on 05Jun2025
         ff <- f(xv,current_x0,params,dat,which_par)
-        new_x0 <- ff$eta_next
-        if (which_par!='lmm_corr_random_effects') {
-            if (length(grep('w_',which_par))>0) {
-                m <- ff$m
-                V <- ff$V
-            } else {
-                names(new_x0) <- nm
-                dev1 <- ff$dev1
-                dev2 <- ff$dev2
-            }
+          new_x0 <- ff$eta_next
+          if (which_par!='lmm_corr_random_effects') {
+            names(new_x0) <- nm
+            dev1 <- ff$dev1
+            dev2 <- ff$dev2
         } else {
             m <- ff$m
             V <- ff$V
@@ -700,31 +649,29 @@ auto_mode_finder <- function(which_par, start_x0, params, dat) {
         iter <- iter + 1
         ##   continue or stop
         if (all(err[which(new_x0!=0)]<=gmrf_settings$eps)) {
-            ##   all reached maximum
-            continue <- FALSE
+          ##   all reached maximum
+          continue <- FALSE
         } else {
-            ##   some have not reached maximum
-            if (iter==gmrf_settings$max_iters) {
-                ##   max. iteration reached
-                continue <- FALSE
-                stop('max iteration reached but some still not at maximum')
-            }
+          ##   some have not reached maximum
+          if (iter==gmrf_settings$max_iters) {
+              ##   max. iteration reached
+              continue <- FALSE
+              stop('max iteration reached but some still not at maximum')
+          }
         }
         ##   continue or not, update the positions
-        current_x0 <- new_x0
-        store_x0 <- rbind(store_x0,new_x0)
-      }
-    if (which_par!='lmm_corr_random_effects') {
-      if (length(grep('w_',which_par))>0) {
-          out <- list(x=current_x0,iter=iter,abs_err100=err,m=m,V=V)
-      } else {
-          out <- list(x=current_x0,iter=iter,abs_err100=err,dev1=dev1,dev2=dev2)
-      }
-    } else {
-        out <- list(x=current_x0,iter=iter,abs_err100=err,m=m,V=V)
+      current_x0 <- new_x0
+      ##store_x0 <- rbind(store_x0,new_x0)
     }
+    if (which_par!='lmm_corr_random_effects') {
+      out <- list(x=current_x0,iter=iter,abs_err100=err,dev1=dev1,dev2=dev2)
+    } else {
+      out <- list(x=current_x0,iter=iter,abs_err100=err,m=m,V=V)
+    }
+    if (which_par=='beta_lmm') print(paste0(which_par,' ',iter,' x0: ',round(x0,digits=4),' x_out: ',round(current_x0,digits=4)))
     return(out)
 }
+
 
 #' @export
 sample_at_opt_mode_univariate <- function(opt) {
@@ -740,18 +687,18 @@ sample_at_opt_mode_univariate <- function(opt) {
 sample_at_opt_mode_multivariate <- function(opt) {
   mx <- opt$x
   V <- opt$V
-  s <- c(MASS::mvrnorm(1,mx,V))
-  out <- list(mean=mx,V=V,x=s)
+  tmp <- check_positive_definiteness(opt$V)  ##  check positive defininteness
+  sx <- NULL
+  for (i in 1:nrow(mx)) {
+        s <- c(mvrnorm(1,mx[i,],V[i,,]))
+        sx <- rbind(sx,s)
+    }
+    out <- list(mean=mx,V=V,x=sx)
   return(out)
 }
 
 #' @export
 check_positive_definiteness <- function(V) {
-  if (length(dim(V))==2) {
-    tmp <- array(0,c(1,dim(V)))
-    tmp[1,,] <- V
-    V <- tmp
-  }
   c1 <- which(signif(V[,1,2],digits=10)!=signif(V[,2,1],digits=10))
   dtm <- V[,1,1]*V[,2,2] - V[,1,2]*V[,2,1]
   c2 <- which(dtm<=0)
@@ -784,8 +731,10 @@ check_positive_definiteness <- function(V) {
   return(out)
 }
 
+
 #' @export
 sample_at_opt_mode_multivariate_faster <- function(opt) {
+  
   ##   https://www.probabilitycourse.com/chapter5/5_3_2_bivariate_normal_dist.php
   mx <- opt$x
   V <- opt$V
@@ -814,36 +763,24 @@ gmrf_sampling <- function(which_par, params, dat) {
     if (which_par=='slope') pp <- 'd'
     if (length(grep('a_',which_par))>0) pp <- which_par
     if (which_par=='beta') pp <- which_par
-    is_cty_random <- FALSE
-    if (length(grep('w_',which_par))>0) is_cty_random <- TRUE
+    if (which_par=='logdel') pp <- which_par
+    #  added 13Jul2026
+    if (which_par=='beta_lmm') pp <- which_par
     if (which_par=='lmm_corr_random_effects') {
         pp <- which_par
         start_x0 <- NULL
     } else {
-        if (is_cty_random) {
-            #  random effects on an MSM transition
-            pp <- 'w'
-            which_jk <- sub(pp,'',which_par)
-            start_x0 <- params[[pp]][grep(which_jk,names(params[['w']]))]
-        } else {
-            start_x0 <- params[[pp]]
-        }
+        start_x0 <- params[[pp]]
     }
 
     ##   find the modes via Newton-Raphson
     opt_x <- auto_mode_finder(which_par, start_x0, params, dat)
+
     ##   sample based on the modes
     if (which_par!='lmm_corr_random_effects') {
-      if (!is_cty_random) {
-        xs <- sample_at_opt_mode_univariate(opt_x)
-        names(xs$x) <- names(start_x0)
-        out <- list(mean=xs$mean,sd=xs$sd,x=xs$x)
-      } else {
-        v_check <- check_positive_definiteness(opt_x$V)  ##  check positive definiteness
-        if (!is.null(v_check$msg)) report_problems(v_check, dat)
-        xs <- sample_at_opt_mode_multivariate(opt_x)
-        out <- list(mean=xs$mean,V=xs$V,x=xs$x)
-      }
+      xs <- sample_at_opt_mode_univariate(opt_x)
+      names(xs$x) <- names(start_x0)
+      out <- list(mean=xs$mean,sd=xs$sd,x=xs$x)
     } else {
       v_check <- check_positive_definiteness(opt_x$V)  ##  check positive definiteness
       if (!is.null(v_check$msg)) report_problems(v_check, dat)
@@ -852,6 +789,8 @@ gmrf_sampling <- function(which_par, params, dat) {
     }
     return(out)
 }
+
+
 
 #' @export
 report_problems <- function(vc, dat) {
@@ -957,6 +896,9 @@ if (F) {
 
 #' @export
 update_data_sd <- function(params,dat) {
+  ################################################################
+  ##   updated to include fixed effects on the LMM
+  ################################################################
   prior <- c(0.01,0.01)
   dl <- dat$long
   y <- dl$y      #  longitudinal observations
@@ -965,8 +907,10 @@ update_data_sd <- function(params,dat) {
 ##  pid <- dl$pid  #  which y belongs to which person
   u <- params[['u']][dl$mergeid] # intercept
   d <- params[['d']][dl$mergeid] # slope
-  shape <- sum(nts)/2
-  rate <- 0.5*sum((y-u-d*tt)^2)
+  shape <- 0.5*sum(nts)
+
+  mm <- u + d*tt
+  rate <- 0.5*sum((y-mm)^2)
   prec <- rgamma(1,shape=shape+prior[1],rate=rate+prior[2])
   #  returnn sd
   out <- sqrt(1/prec)
@@ -977,47 +921,53 @@ if (F) {
 }
 
 
+
 #' @export
-sample_lmm_mean_vector <- function(params, dat) {
-    p <- 2  #  number of correlated random effects per person
-    npds <- dat$npds
-    u <- params[['u']]
-    d <- params[['d']]
-    ##   mean vector of the current random effects
-    b <- matrix(c(mean(u),mean(d)),nrow=p)
-    Q_D <- params[['Q_D']]
-    ##   prior specification
-    B_0 <- matrix(rep(0,p),nrow=p)
-    Q_D0 <- 1/100^2*diag(p)
-    ##   mean and variance of the full conditional
-    P <- npds*Q_D + Q_D0
-    V <- MASS::ginv(P)
-    M <- t(npds*Q_D%*%b + Q_D0%*%B_0)%*%V
-    x <- MASS::mvrnorm(1,mu=M,Sigma=V)
-    out <- list(M=M,V=V,x=x)
-    return(out)
+sample_lmm_mean_vector <- function(params, dat, tau_B01=1/1000^2, tau_B02=1/1000^2) {
+  upid <- dat$unique_mergeid
+  npids <- length(upid)
+  Q <- params[['Q_D']]
+  #  prior B ~ N(B0, Q_B)
+  Q_B <- matrix(c(tau_B01,0,0,tau_B02),nrow=2,byrow=T)
+  B0 <- matrix(c(0,0),ncol=1)
+
+  E <- npids * Q + Q_B
+  u <- params[['u']][upid]
+  d <- params[['d']][upid]
+  sb <- matrix(c(sum(u),sum(d)),ncol=1)
+  A <- dat$A0_uniq[upid]
+  sg <- params[['beta_lmm']]*matrix(c(sum(A),0),ncol=1)
+  FF <- Q%*%(sb - sg) + Q_B%*%B0
+  
+  V <- MASS::ginv(E)
+  mn <- V%*%FF
+  sx <- MASS::mvrnorm(1,mn,V)
+  out <- list(mean=mn, V=V, x=matrix(sx,ncol=1))
+  return(out)
 }
 
 #' @export
 sample_lmm_precision_matrix <- function(params, dat) {
-    ##   Wishart prior
-    rho <- 0
-    s1 <- s2 <- 10
-    V <- matrix(c(s1^2,rho*s1*s2,rho*s1*s2,s2^2),nrow=2)
-    inv_V <- MASS::ginv(V)
-    nu0 <- 2
+  upid <- dat$unique_mergeid
+  npids <- length(upid)
+  A <- dat$A0_uniq[upid]
 
-    npds <- dat$npds
-    u <- params[['u']]
-    d <- params[['d']]
-    b <- cbind(u,d)
-    B <- params[['B']]
-    db <- b
-    for (i in 1:ncol(b)) db[,i] <- b[,i] - B[i]
+  ##   Wishart prior
+  rho <- 0
+  s1 <- s2 <- 10
+  V <- matrix(c(s1^2,rho*s1*s2,rho*s1*s2,s2^2),nrow=2)
+  inv_V <- ginv(V)
+  nu0 <- 2
 
-    S <- MASS::ginv(t(db)%*%db + inv_V)
-    nu <- npds + nu0
-    x <- LaplacesDemon::rwishart(nu, round(S,digits=11))
-    out <- list(roundS=round(S,digits=10),S=S,nu=nu,x=x)
-    return(out)
+  u <- params[['u']][upid]
+  d <- params[['d']][upid]
+  beta_lmm <- params[['beta_lmm']]
+  db <- cbind(u-params[['B']][1,1] - beta_lmm * A,
+              d-params[['B']][2,1])
+
+  S <- MASS::ginv(t(db)%*%db + inv_V)
+  nu <- npids + nu0
+  x <- rwishart(nu, round(S,digits=11))
+  out <- list(roundS=round(S,digits=10),S=S,nu=nu,x=x)
+  return(out)
 }
