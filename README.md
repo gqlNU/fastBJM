@@ -281,7 +281,7 @@ The longitudinal measurements for this person are stored under the column `y` in
 52005    4054  72 -1.0251801        64
 ```
 
-
+<!--
 ## Example 3: A joint model with exchangeable random effects on each MSM transition <font color='orange'>(for illustration only)</font>
 
 The example is motivated by the analysis of the health state transitions using the SHARE data across various countries. The use of country-specific random effects on each transition allows information to be shared when estimating the transition rates, thus resulting in reliable country-specific estimates. The transition rates take the form:
@@ -375,4 +375,6 @@ res <- mcmc_update(fitdata, inits, niters, model_spec, update_setting)
 sims.list <- res$sims.list
 current_pars <- res$current_pars
 ```
+-->
+
 </details>
