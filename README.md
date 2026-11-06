@@ -135,7 +135,7 @@ sims.list <- mcmc_update(fitdata, inits, niters, model_spec, update_setting)
 </details>
 
 
-
+<!--
 ## Example 2: Fitting a multistate only model
 
 fastBJM can be used to fit a multistate-only model with a piecewise constant model on the transition intensities. This is done by not specifying a longitudinal variable in the model specification, namely, by setting `model_spec$which_longvar <- NULL`. Fixed effects can still be included on all (or some) of the transition intensities.
@@ -318,6 +318,8 @@ The longitudinal measurements for this person are stored under the column `y` in
 42848    4054  70 -1.3820206        64
 52005    4054  72 -1.0251801        64
 ```
+
+-->
 
 <!--
 ## Example 3: A joint model with exchangeable random effects on each MSM transition <font color='orange'>(for illustration only)</font>
