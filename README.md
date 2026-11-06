@@ -2,7 +2,7 @@
 
 Joint models are computationally expensive to fit due to the complex joint likelihood and the need to estimate a large number of individual-level random effects. `fastBJM` is an efficient and scalable algorithm for fitting Bayesian joint models using Markov chain Monte Carlo.
 
-The preprint of the paper that details the algorithm will be made avaiable on [Research Square](https://www.researchsquare.com/).
+The preprint that details the algorithm will be made avaiable on [Research Square](https://www.researchsquare.com/).
 
 
 ##  Installing the package
