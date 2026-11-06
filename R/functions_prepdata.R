@@ -1,4 +1,7 @@
 #' @export
+scale_age_entry <- function(AA) (AA-65)/10
+
+#' @export
 prepare_fitdata <- function(dat, model_spec) {
     ##   add participant ID
     dd <- dat
@@ -25,26 +28,42 @@ prepare_fitdata <- function(dat, model_spec) {
         out <- all_data
     }
     ##   prepare fixed effects if included
-    if (model_spec$include_fixed_effects) out <- prepare_X(out, model_spec)
+    if (!is.null(model_spec$X_spec)) out <- prepare_X(out, model_spec$X_spec, model_spec)
     ##   prepare age-related variables
-    out <- prepare_age(out, model_spec)
+    out <- prepare_age(out, model_spec$age_range, model_spec$age_cuts)
     ##   prepare age-related variables
     out <- prepare_indices(out)
     ##   get GMRF settings
     out$gmrf_settings <- gmrf_configs()
+    ##   scaled age entry to be included as a fixed effect in LMM
+    out$A0 <- scale_age_entry(out$age_entry)
+    out$A02 <- out$A0 * out$A0
+    out$A0_uniq <- tapply(out$A0,out$mergeid,unique)[out$unique_mergeid]
+    out$A02_uniq <- out$A0_uniq * out$A0_uniq
+    out$sA0u <- sum(out$A0_uniq)
+    out$sA02u <- sum(out$A02_uniq)
+    
+    out$jk_mergeid_index <- paste0(out$jk_index,out$mergeid)
+    names(out$status) <- names(out$start) <- names(out$stop) <- out$jk_mergeid_index
+
     ##   for Gauss Legendre qradrature
     out$nQs <- model_spec$nQs
     out$Q <- prepare_quadrature(out)
     ##   unique subject IDs (use this throughout!!)
     out$subject <- unique(out$mergeid)
     ##   structure and summarise longitudinal measurements
-    which_longvar <- model_spec$which_longvar
-    if (model_spec$joint) {
-        out$long <- format_longitudinal(out, model_spec)
+    if (!is.null(model_spec$which_longvar)) {
+        out$long <- format_longitudinal(out, model_spec$which_longvar, model_spec$standardise_y)
         out$sumlong <- summarise_longitudinal_measures(out)
     }
     out$model_spec <- model_spec
-    print(out$ncases_by_jkg)
+
+    ##   ensure out$sumlong$mergeid and out$unique_mergeid are in the same order
+    cc <- sum(1:length(out$unique_mergeid)-sapply(out$unique_mergeid,function(x){which(out$sumlong$mergeid==x)}))
+    if (cc!=0) stop('sumlong$mergeid and unique_mergeid are not in the same order')
+
+    out$sojourn <- out$stop-out$start
+    out$t_weibull <- out$sojourn
     return(out)
 }
 
@@ -92,16 +111,16 @@ subset_data_by_transitions <- function(dat, allowable_transitions, transitions_t
 ###  function to get fixed effects
 #######################################################
 #' @export
-prepare_X <- function(dat, model_spec) {
+prepare_X <- function(dat, X_spec, model_spec) {
   out <- dat
-  X_spec <- model_spec$X_spec
-  out$X_spec <- data.frame(xn=X_spec[,1],type=X_spec[,2])
-  out$X <- gather_X(out, model_spec$standardise_cnt_x)
-  out$nXs <- ncol(out$X)
-  out$XVars <- colnames(out$X)
+  if (!is.null(X_spec)) {
+    out$X_spec <- data.frame(xn=X_spec[,1],type=X_spec[,2])
+    out$X <- gather_X(out, model_spec$standardise_cnt_x)
+    out$nXs <- ncol(out$X)
+    out$XVars <- colnames(out$X)
+  }
   return(out)
 }
-
 
 #######################################################
 ###  function to check the validity of the fixed
@@ -131,6 +150,7 @@ check_X_spec <- function(dat) {
     return(out)
 }
 
+
 #######################################################
 ###  function to construct the X matrix
 #######################################################
@@ -155,7 +175,8 @@ gather_X <- function(dat,standardise_cnt_x=T) {
         if (tp=='cat') {
             #  a categorical one
             if (length(unique(x))>10) print(paste0('Warning: there are more than 10 levels in the categorical covariate ',this_x))
-            xc <- prep_catX(x,remove_first_dummy = TRUE)
+            xc <- fastDummies::dummy_cols(x,remove_first_dummy=TRUE)
+            xc <- as.matrix(xc[which(names(xc)!='.data')])
             this_xc <- paste0(this_x,1:ncol(xc))
             out <- cbind(out,xc)
             out_colnames <- c(out_colnames,this_xc)
@@ -173,6 +194,7 @@ gather_X <- function(dat,standardise_cnt_x=T) {
   }
   return(out)
 }
+
 
 
 #######################################################
@@ -210,10 +232,9 @@ which_age_interval_cut <- function(dat, ages) {
 ###  gather various age-related variables
 #######################################################
 #' @export
-prepare_age <- function(dat, model_spec) {
+prepare_age <- function(dat, age_range, age_cuts) {
   out <- dat
-  age_range <- model_spec$age_range
-  age_cuts <- model_spec$age_cuts
+  #  age-related
   age_intervals <- get_age_intervals(age_range, age_cuts)
   out$age_intervals <- age_intervals
   out$age_range <- age_range
@@ -252,25 +273,17 @@ prepare_indices <- function(dat) {
     ##   index of transition
     out$jk_index <- paste0(out$from,out$to)
     ##   index of transition-country
-    out$jkc_index <- paste0(out$cty_id,'_',out$jk_index)
+    out$jkc_index <- paste0('cty',out$cty_id,'_',out$jk_index)
     ##   index of transition-age
     out$jkg_index <- paste0(out$jk_index,'g',out[['age_gp_calc']])
     ##   index of transition-age_country
     out$jkgc_index <- paste0('cty',out$cty_id,'_',out$jk_index,'g',out[['age_gp_calc']])
-    
-    ##   case numbers by transition-age group
+
     out$all_jkg_index <- c(sapply(ats,function(k){paste0(k,'g',1:out$nGs)}))
     out$ncases_by_jkg <- rep(0,length(out$all_jkg_index))
     names(out$ncases_by_jkg) <- out$all_jkg_index
     ts <- tapply(out$status,out$jkg_index,sum)
     out$ncases_by_jkg[names(ts)] <- ts[names(ts)]
-
-    ##   case numbers by transition-country
-    out$all_jkc_index <- c(sapply(ats,function(k){paste0(1:out$nctys,'_',k)}))
-    out$ncases_by_jkc <- rep(0,length(out$all_jkc_index))
-    names(out$ncases_by_jkc) <- out$all_jkc_index
-    ts <- tapply(out$status,out$jkc_index,sum)
-    out$ncases_by_jkc[names(ts)] <- ts[names(ts)]
 
     out$trans_indicators <- array(0,c(length(out$from),out$NTS))
     colnames(out$trans_indicators) <- out$transitions_to_analyse
@@ -279,6 +292,7 @@ prepare_indices <- function(dat) {
 
     return(out)
 }
+
 
 ########################################
 ####  GMRF related configs
@@ -330,40 +344,47 @@ prepare_quadrature <- function(dat) {
   Q$row_id <- rep(1:length(dat$pid),each=nQs)
   Q$age_entry <- rep(dat$age_entry,each=nQs)
   Q$t_ms_t0 <- Q$age_calc - Q$age_entry
+  
+  Q$A0 <- rep(dat$A0,each=nQs)
+  Q$A02 <- rep(dat$A02,each=nQs)
+  Q$jk_mergeid_index <- paste0(Q$jk_index,Q$mergeid)
+  Q$status <- dat$status[Q$jk_mergeid_index]
+  Q$sojourn <- (dat$stop-dat$start)[Q$jk_mergeid_index]
 
+  Q$t_weibull <- stts
   return(Q)
 }
-
 
 
 #######################################################
 ###  function to format the longitudinal measurements
 #######################################################
 #' @export
-format_longitudinal <- function(dat, model_spec) {
-    which_longvar <- model_spec$which_longvar
-    standardise_y <- model_spec$standardise_y
-    dlong <- dat$long
-    dlong$pid <- dat$unique_mergeid_id[as.character(dlong$mergeid)]
-    ##   time of longitudinal measurement since entering SHARE
-    tmp <- dat$age_entry
-    names(tmp) <- dat$mergeid
-    if (length(grep('age_entry',names(dlong)))==0) {
-        dlong$age_entry <- tmp[as.character(dlong$mergeid)]
-    }
-    dlong$t_ms_t0 <- dlong$age - dlong$age_entry
-    ##   extract the longitudinal variable
-    y <- dlong[[which_longvar]]
-    mm <- mean(y)
-    ss <- sd(y)
-    if (standardise_y) y <- (y - mm)/ss
-    dlong$y <- y
-    dlong <- as.list(dlong)
-    dlong$nts <- table(dlong$pid)
-    dlong$mean_y <- mm
-    dlong$sd_y <- ss
-    return(dlong)
+format_longitudinal <- function(dat, which_longvar='bmi', standardise_y) {
+  dlong <- dat$long
+  dlong$pid <- dat$unique_mergeid_id[as.character(dlong$mergeid)]
+  #  time of longitudinal measurement since entering SHARE
+  tmp <- dat$age_entry
+  names(tmp) <- dat$mergeid
+  if (length(grep('age_entry',names(dlong)))==0) {
+      dlong$age_entry <- tmp[as.character(dlong$mergeid)]
+  }
+  dlong$t_ms_t0 <- dlong$age - dlong$age_entry
+  ##   extract the longitudinal variable
+  y <- dlong[[which_longvar]]
+  mm <- mean(y)
+  ss <- sd(y)
+  if (standardise_y) y <- (y - mm)/ss
+  dlong$y <- y
+  dlong <- as.list(dlong)
+  dlong$nts <- table(dlong$pid)
+  dlong$mean_y <- mm
+  dlong$sd_y <- ss
+  dlong$A0 <- scale_age_entry(dlong$age_entry)
+
+  return(dlong)
 }
+
 
 
 #######################################################
@@ -384,15 +405,20 @@ summarise_longitudinal_measures <- function(dat) {
     lg <- dat$long
     n <- to_dataframe(tapply(lg$y,lg$mergeid,length),nm='n')
     h <- lg$age - lg$age_entry  #  years since entry
+    A0s <- (lg$age_entry - 65)/10  #  scaled age at entry
+
     ##   various summaries
     sum_h <- to_dataframe(tapply(h,lg$mergeid,sum),nm='sum_h')
     sum_h2 <- to_dataframe(tapply(h^2,lg$mergeid,sum),nm='sum_h2')
     sum_y <- to_dataframe(tapply(lg$y,lg$mergeid,sum),nm='sum_y')
     sum_hy <- to_dataframe(tapply(h*lg$y,lg$mergeid,sum),nm='sum_hy')
+    A0 <- to_dataframe(tapply(A0s,lg$mergeid,unique),nm='A0')
     out <- merge(n,sum_h,by='mergeid',sort=F)
     out <- merge(out,sum_h2,by='mergeid',sort=F)
     out <- merge(out,sum_y,by='mergeid',sort=F)
     out <- merge(out,sum_hy,by='mergeid',sort=F)
+    out <- merge(out,A0,by='mergeid',sort=F)
+
     ##   reorder out according to dat$subject
     ids <- sapply(dat$subject,function(x){which(out$mergeid==x)})
     out <- out[ids,]

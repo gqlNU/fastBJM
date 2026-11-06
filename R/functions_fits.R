@@ -209,7 +209,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
           pp <- 'B'
           ss <- sample_lmm_mean_vector(current_pars,data)$x
           current_pars[[pp]] <- matrix(ss,ncol=1)
-          sims.list[[pp]] <- rbind(sims.list[[pp]],ss)
+          sims.list[[pp]] <- rbind(sims.list[[pp]],c(ss))
           ##   update precision matrix
           pp <- 'Q_D'
           ss <- sample_lmm_precision_matrix(current_pars,data)$x
@@ -969,5 +969,53 @@ sample_lmm_precision_matrix <- function(params, dat) {
   nu <- npids + nu0
   x <- rwishart(nu, round(S,digits=11))
   out <- list(roundS=round(S,digits=10),S=S,nu=nu,x=x)
+  return(out)
+}
+
+
+#' @export
+sample_eta <- function(params,dat) {
+  upid <- dat$unique_mergeid
+  npids <- length(upid)
+
+  B1 <- params[['B']][1,1]
+  B2 <- params[['B']][2,1]
+  y <- dat$long$y
+  tt <- dat$long$t_ms_t0
+
+  r <- y - B1 - B2*tt
+  rs <- tapply(r,dat$long$mergeid,function(x) {x})
+  rs <- rs[upid]
+
+  Q_D <- params[['Q_D']]
+  D <- ginv(Q_D)
+  tau_y <- 1/params[['sd_y']]^2
+  v_y <- params[['sd_y']]^2
+
+  O <- tapply(tt,dat$long$mergeid,function(x){
+    xx <- cbind(rep(1,length(x)),x)
+    out <- xx%*%D%*%t(xx) + v_y*diag(length(x))
+    return(out)
+  })
+  O_inv <- lapply(O,ginv)
+  O_inv <- O_inv[upid]
+
+  A <- dat$A0_uniq[upid]
+  H <- sum(unlist(lapply(1:npids,function(x){
+    o <- O_inv[[x]]
+    n <- nrow(o)
+    ones <- matrix(1,ncol=1,nrow=n)
+    A[x]^2*t(ones)%*%o%*%ones
+  })))
+  G <- sum(unlist(lapply(1:npids,function(x){
+    o <- O_inv[[x]]
+    n <- nrow(o)
+    ones <- matrix(1,ncol=1,nrow=n)
+    A[x]*t(ones)%*%o%*%rs[[x]]
+  })))
+  mn <- G/H
+  ss <- 1/sqrt(H)
+  sx <- rnorm(1,mn,ss)
+  out <- list(mean=mn,sd=ss,x=sx)
   return(out)
 }

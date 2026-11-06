@@ -19,58 +19,64 @@ tidy_model_spec <- function(model_spec) {
 #' @export
 gather_update_setting <- function(dat, model_spec) {
   out <- list()
-  ##   update baseline hazards?
   out$update_h0 <- T
-  ##   update association parameter(s)?
   out$update_association <- T
+  out$update_fixed_effects <- T
+  if (!model_spec$include_fixed_effects) out$update_fixed_effects <- F
   out$update_lmm_random_effects <- T
   out$update_lmm_data_sd <- T
-  if (!model_spec$joint) {
+  out$update_cty_random_effects <- T
+  out$update_cty_random_effects_SD <- T
+  if (model_spec$msm_only) {
     out$update_association <- F
     out$update_lmm_random_effects <- F
     out$update_lmm_data_sd <- F
   }
-  ##   update fixed effect(s)?
-  out$include_fixed_effects <- model_spec$include_fixed_effects
-  out$update_fixed_effects <- out$include_fixed_effects
+  if (model_spec$msm_by_country=='fixed' | model_spec$msm_by_country=='') {
+    out$update_cty_random_effects <- F
+    out$update_cty_random_effects_SD <- F
+  }
+  out$update_age_cty_interactions <- F
+  out$update_age_cty_interactions_SD <- F
   ##   which fixed effects to be updated during MCMC
   bb <- NULL
-  if (model_spec$include_fixed_effects) {
-      msb <- model_spec$beta_by_transitions
-      for (ix in 1:length(msb)) {
-        xn <- names(msb)[ix]
-        xtype <- dat$X_spec$type[which(dat$X_spec$xn==xn)]
-        if (xtype=='cnt') {
-            ##   a continuoue-valued covariate
-            tmp <- paste0(xn,'_',msb[[ix]])
-        } else {
-            ##   a categorical covariate
-            tmp <- sapply(msb[[ix]],function(xx) {paste0(dat$XVars[grep(xn,dat$XVars)],'_',xx)})
-        }
-        bb <- c(bb,tmp)
-      }
+  msb <- model_spec$beta_by_country
+  for (ix in 1:length(model_spec$beta_by_country)) {
+    xn <- names(msb)[ix]
+    xtype <- dat$X_spec$type[which(dat$X_spec$xn==xn)]
+    if (xtype=='cnt') {
+        ##   a continuoue-valued covariate
+        tmp <- paste0(xn,'_',msb[[ix]])
+    } else {
+        ##   a categorical covariate
+        tmp <- sapply(msb[[ix]],function(xx) {paste0(dat$XVars[grep(xn,dat$XVars)],'_',xx)})
+    }
+    bb <- c(bb,tmp)
   }
-  out$beta_to_update <- bb
-
-  ##   update weibull scale?
+  ##   added on 15Oct2025
   out$update_logdel <- FALSE
   if (model_spec$weibull_baseline) out$update_logdel <- TRUE
 
-  out$update_msm_random <- out$update_msm_random_SD <- FALSE
-  if (model_spec$include_msm_random) {
-    out$update_msm_random <- TRUE
-    out$update_msm_random_SD <- TRUE
+  ##   added on 13Jul2026
+  out$update_beta_lmm <- FALSE
+  if (model_spec$update_beta_lmm) out$update_beta_lmm <- TRUE
+
+  out$beta_to_update <- bb
+  if (model_spec$fitdata_type=='lmm_only') {
+    out$update_h0 <- 
+    out$update_association <- 
+    out$update_fixed_effects <- 
+    out$update_logdel <- F
   }
   return(out)
 }
-
 
 
 ########################################
 ####  prepare parameters
 ########################################
 #' @export
-get_parameters <- function(dat, model_spec) {
+get_parameters <- function(dat,model_spec) {
     ats <- dat$transitions_to_analyse
     ps <- c(sapply(ats,function(k){paste0(k,'g',1:dat$nGs)}))
     ##########################
@@ -80,11 +86,17 @@ get_parameters <- function(dat, model_spec) {
     params <- list(l=rep(0.05,length(ps)),logdel=rep(0,length(ps)))
     names(params[['l']]) <- names(params[['logdel']]) <- ps
     
+    if (model_spec$msm_by_country=='random') {
+        params[['eta']] <- rep(0,dat$nctys*dat$NTS)
+        names(params[['eta']]) <- sapply(ats,function(x){paste0('cty',1:dat$nctys,'_',x)})
+        params[['sd_eta']] <- rep(0.1,dat$NTS)
+        names(params[['sd_eta']]) <- ats
+    }
     ##########################
     ##   fixed effects
     ##########################
     if (model_spec$include_fixed_effects) {
-        bc <- model_spec$beta_by_transitions
+        bc <- model_spec$beta_by_country
         nms <- NULL
         for (ibc in 1:length(bc)) {
             xn <- names(bc)[ibc]
@@ -99,7 +111,14 @@ get_parameters <- function(dat, model_spec) {
             nms <- c(nms,tmp)
         }
         params[['beta']] <- rep(0,length(nms))
-        names(params[['beta']]) <- nms
+            names(params[['beta']]) <- nms
+##        params[['beta']] <- rep(0,dat$nXs*dat$NTS)
+##        names(params[['beta']]) <- sapply(ats,function(k){paste0(dat$XVars,'_',k)})
+    }
+    if (model_spec$msm_country_age) {
+        params[['kappa']] <- rep(0,dat$nctys*dat$NTS*dat$nGs)
+        names(params[['kappa']]) <- sapply(sapply(ats,function(x){paste0('cty',1:dat$nctys,'_',x)}),function(xx){paste0(xx,'g',1:dat$nGs)})
+        params[['sd_kappa']] <- 0.1
     }
     if (model_spec$joint) {
         ##########################
@@ -114,7 +133,7 @@ get_parameters <- function(dat, model_spec) {
         ##   random intercepts and slopes
         params[['u']] <- rep(mean(dat$long$y),dat$npds)
         params[['d']] <- rep(0,dat$npds)
-        names(params$u) <- names(params$d) <- dat$subject
+        names(params$u) <- names(params$d) <- dat$unique_mergeid
         ##   hyperparameters
         if (model_spec$lmm_correlated_random_effects) {
             ##   mean vector and precision matrix
@@ -128,21 +147,11 @@ get_parameters <- function(dat, model_spec) {
             params[['m_d']] <- 0
         }
     }
-    ####################################################
-    ##   IID random effects on each MSM transition
-    ####################################################
-    if (model_spec$include_msm_random) {
-        params[['w']] <- rep(0,dat$nctys*length(ats))
-        nms <- NULL
-        for (icty in 1:dat$nctys) nms <- c(nms,paste0(icty,'_',ats))
-        names(params[['w']]) <- nms
-        #   random effect SD per transition
-        params[['sd_w']] <- rep(0.3,length(ats))
-        names(params[['sd_w']]) <- ats
-    }
+    #  added 13Jul2026
+    params[['beta_lmm']] <- 0  
+    
     return(params)
 }
-
 
 
 ########################################
