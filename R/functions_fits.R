@@ -280,7 +280,7 @@ log_posterior <- function(params, dat) {
           rho <- 0
           s1 <- s2 <- 10
           V <- matrix(c(s1^2,rho*s1*s2,rho*s1*s2,s2^2),nrow=2)
-          prs[6] <- dwishart(params[['Q_D']],nu=2,S=V,log=T)
+          prs[6] <- LaplacesDemon::dwishart(params[['Q_D']],nu=2,S=V,log=T)
           ##   error SD
           prs[7] <- dgamma(1/params[['sd_y']]^2,shape=0.001,rate=0.001,log=T)
           ##  association parameters
@@ -290,8 +290,8 @@ log_posterior <- function(params, dat) {
           b <- cbind(params[['u']],params[['d']])
           ##   correlated intercept-slope
           ##     changed on 08Jul2025 using fastmvn
-          ##prs1 <- apply(b,1,function(bi) {mvtnorm::dmvnorm(c(bi),B,D,log=T)})  ## before 08Jul2025
-          prs1 <- dmvn(b,B,D,log=T)  ## much faster version
+          ##prs1 <- apply(b,1,function(bi) {dmvnorm(c(bi),B,D,log=T)})  ## before 08Jul2025
+          prs1 <- fastmvn::dmvn(b,B,D,log=T)  ## much faster version
           prs2 <- 0
           if (!byperson) prs[9] <- sum(prs1 + prs2)
       } else {
