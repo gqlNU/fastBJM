@@ -285,7 +285,7 @@ log_posterior <- function(params, dat) {
           prs[7] <- dgamma(1/params[['sd_y']]^2,shape=0.001,rate=0.001,log=T)
           ##  association parameters
           prs[8] <- sum(dnorm(unlist(params[grep('a_',names(params))]),0,100,log=T))
-          D <- round(ginv(params[['Q_D']]),digits=10)
+          D <- round(MASS::ginv(params[['Q_D']]),digits=10)
           B <- c(params[['B']])
           b <- cbind(params[['u']],params[['d']])
           ##   correlated intercept-slope
@@ -956,7 +956,7 @@ sample_lmm_precision_matrix <- function(params, dat) {
   rho <- 0
   s1 <- s2 <- 10
   V <- matrix(c(s1^2,rho*s1*s2,rho*s1*s2,s2^2),nrow=2)
-  inv_V <- ginv(V)
+  inv_V <- MASS::ginv(V)
   nu0 <- 2
 
   u <- params[['u']][upid]
@@ -988,7 +988,7 @@ sample_eta <- function(params,dat) {
   rs <- rs[upid]
 
   Q_D <- params[['Q_D']]
-  D <- ginv(Q_D)
+  D <- MASS::ginv(Q_D)
   tau_y <- 1/params[['sd_y']]^2
   v_y <- params[['sd_y']]^2
 
@@ -997,7 +997,7 @@ sample_eta <- function(params,dat) {
     out <- xx%*%D%*%t(xx) + v_y*diag(length(x))
     return(out)
   })
-  O_inv <- lapply(O,ginv)
+  O_inv <- lapply(O,MASS::ginv)
   O_inv <- O_inv[upid]
 
   A <- dat$A0_uniq[upid]
