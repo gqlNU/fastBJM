@@ -24,6 +24,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
       ##  age-specific baselines
       ##-##################################################
       if (update_setting$update_h0) {
+          data$model_spec$byperson <- F
           pp <- 'l'
           x <- update_baseline(current_pars, fitdata, prior=c(0.01,0.01))
           nms <- names(x)
@@ -36,6 +37,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
       ##  age-specific Weibull shape
       ##-##################################################  
       if (update_setting$update_logdel) {
+          data$model_spec$byperson <- F
           pp <- 'logdel'
           for (which_jkg in paste0(ats,'g1')) {
               propose_pars <- current_pars
@@ -123,6 +125,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
       ##   update MSM fixed effects
       ##-##########################
       if (update_setting$update_fixed_effects) {
+          data$model_spec$byperson <- F
           pp <- 'beta'
           propose_pars <- current_pars
           bstar <- gmrf_sampling(pp, current_pars, data)
@@ -154,6 +157,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
       ##   update association parameters
       ##-################################
       if (update_setting$update_association) {
+          data$model_spec$byperson <- F
           for (pp in model_spec$aps) {
               propose_pars <- current_pars
               bstar <- gmrf_sampling(pp, current_pars, data)
@@ -182,6 +186,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
       ##   Gibbs for longitudinal fixed effects
       ##-######################################
       if (update_setting$update_beta_lmm) {
+          data$model_spec$byperson <- F
           pp <- 'beta_lmm'
           #ss <- sample_beta_lmm(current_pars,fitdata)$x
           ss <- sample_eta(current_pars,fitdata)$x
@@ -194,6 +199,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
       ##   Gibbs for error SD in LMM
       ##-##################################################
       if (update_setting$update_lmm_data_sd) {
+          data$model_spec$byperson <- F
           pp <- 'sd_y'
           ss <- update_data_sd(current_pars,data)
           current_pars[[pp]] <- ss
@@ -205,6 +211,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
       ##   Gibbs for hyperparameters in LMM
       ##-##################################################
       if (update_setting$update_lmm_random_effects) {
+          data$model_spec$byperson <- F
           ##   update mean vector
           pp <- 'B'
           ss <- sample_lmm_mean_vector(current_pars,data)$x
