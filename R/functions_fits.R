@@ -289,9 +289,9 @@ log_posterior <- function(params, dat) {
           B <- c(params[['B']])
           b <- cbind(params[['u']],params[['d']])
           ##   correlated intercept-slope
-          ##     changed on 08Jul2025 using fastmvn
+          ##     changed on 08Jul2025 using mvnfast
           ##prs1 <- apply(b,1,function(bi) {dmvnorm(c(bi),B,D,log=T)})  ## before 08Jul2025
-          prs1 <- fastmvn::dmvn(b,B,D,log=T)  ## much faster version
+          prs1 <- mvnfast::dmvn(b,B,D,log=T)  ## much faster version
           prs2 <- 0
           if (!byperson) prs[9] <- sum(prs1 + prs2)
       } else {
