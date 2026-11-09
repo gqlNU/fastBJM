@@ -31,48 +31,29 @@ where $\boldsymbol{X}_i$ denotes the covariates and $u_i$ and $d_i$ are the inte
 ```R
 library("fastBJM")
 
-library(statmod)
-library(LaplacesDemon)  ## for sampling Wishart
-library(MASS)           ## matrix inverse
-library(emdbook)        ## MVN density
-library(abind)          ## for abind
-library(mvnfast)        ## very fast calculation of MVN density (see log_posterior in functions4fits.r 08Jul2025)
-library(qslice)         ## for slice_stepping_out (updating weibull)
-library(pracma)         ## for numerical differentiation for weibull scale
-
 #################################
 ##   user inputs
 #################################
 ##   define permissible transitions
 ats <- c('12','13','15','24','25','34','35','45')
-#basRisk <- 'weibullsurv'
-basRisk <- 'exponentialsurv'
-model_spec$aps <- c('a_1')
 
 names(ats) <- ats
 model_spec <- list()
+##   type of baseline
+#basRisk <- model_spec$basRisk <- 'weibullsurv'
+basRisk <- model_spec$basRisk <- 'exponentialsurv'
+
 ##   only modelling the multistate outcome if T; else joint modelling
+model_spec$fitdata_type <- fitdata_type <- 'joint'
 model_spec$msm_only <- F
 model_spec$msm_by_country <- ''
 model_spec$msm_country_age <- FALSE
 model_spec$lmm_parts <- c('intercept','slope')
 model_spec$lmm_correlated_random_effects <- T
 model_spec$standardise_y <- F
-model_spec$standardise_cnt_x <- T
-model_spec$max_diff <- 5
-model_spec$eQs <- c(0.005,0.995)
-model_spec$eVs <- c(16,45)
-model_spec$fitdata_type <- fitdata_type
-update_beta_lmm <- TRUE
-model_spec$aps <- aps
-model_spec$a1p <- a1p
-model_spec$a2p <- a2p
-model_spec$update_association <- T
-if (is.null(aps)) model_spec$update_association <- F
 
-model_spec$update_beta_lmm <- update_beta_lmm
-model_spec$weibull_baseline <- FALSE
-if (basRisk=='weibullsurv') model_spec$weibull_baseline <- TRUE
+##   include the fixed effect of age at entry in the longitudinal submodel or not
+model_spec$update_beta_lmm <- update_beta_lmm <- TRUE
 
 ##   person ID that links the event history data to the longitudinal data
 model_spec$PID <- 'mergeid'
@@ -85,6 +66,7 @@ model_spec$which_longvar <- 'y'
 ##   aps <- c('a_1')      : a linear function of the current value with the transition intensities
 ##   aps <- NULL          : for a separate analysis of the two submodels
 #model_spec$aps <- c('a_1','a_2')
+model_spec$aps <- c('a_1')
 model_spec$a1p <- ats
 model_spec$a2p <- ats
 ## --- fixed effects on the transition intensities
@@ -108,7 +90,6 @@ model_spec$age_cuts <- NULL#c(70)
 model_spec$include_msm_random <- FALSE
 model_spec$beta_by_country <- list(x1=ats,
                                    x2=ats)
-model_spec$fitdata_type <- 'joint'
 #################################
 ##   end user input
 #################################
@@ -119,6 +100,7 @@ model_spec <- tidy_model_spec(model_spec)
 ##   get data in
 dfile <- system.file("extdata", "simdata.rds", package = "fastBJM")
 dd <- readRDS(dfile)
+
 fitdata <- prepare_fitdata(dd,model_spec)
 
 ##   define updating scheme based on the model specification
