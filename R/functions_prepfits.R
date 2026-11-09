@@ -5,13 +5,21 @@ tidy_model_spec <- function(model_spec) {
     out$joint <- !is.null(out$which_longvar)
     out$nQs <- ifelse(out$joint, 15, 1)  #  number of quadrature points
     out$lmm_correlated_random_effects <- ifelse(out$joint, T, F)  #  include corr. REs in longitudinal
-    out$standardise_y <- ifelse(out$joint, T, F)  #  standardise longitudinal measurements
-    out$weibull_baseline <- FALSE  #  Weibull baseline (not currently available)
+    #out$standardise_y <- ifelse(out$joint, T, F)  #  standardise longitudinal measurements
+
     out$include_fixed_effects <- !is.null(out$X_spec)
     if (!out$include_fixed_effects) out$beta_by_transitions <- NULL
     out$standardise_cnt_x <- TRUE  #  standardise continuous fixed effects (if any)
     out$update_RE_byperson <- TRUE #  update each person independently at the MH step
     out$byperson <- TRUE
+
+    out$weibull_baseline <- FALSE
+    if (model_spec$basRisk=='weibullsurv') out$weibull_baseline <- TRUE
+
+    out$max_diff <- 5
+    out$eQs <- c(0.005,0.995)
+    out$eVs <- c(16,45)
+
     return(out)
 }
 
