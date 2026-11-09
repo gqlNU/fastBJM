@@ -58,10 +58,12 @@ prepare_fitdata <- function(dat, model_spec) {
     }
     out$model_spec <- model_spec
 
-    ##   ensure out$sumlong$mergeid and out$unique_mergeid are in the same order
-    cc <- sum(1:length(out$unique_mergeid)-sapply(out$unique_mergeid,function(x){which(out$sumlong$mergeid==x)}))
-    if (cc!=0) stop('sumlong$mergeid and unique_mergeid are not in the same order')
-
+    if (model_spec$joint) {
+        ##   ensure out$sumlong$mergeid and out$unique_mergeid are in the same order
+        cc <- sum(1:length(out$unique_mergeid)-sapply(out$unique_mergeid,function(x){which(out$sumlong$mergeid==x)}))
+        if (cc!=0) stop('sumlong$mergeid and unique_mergeid are not in the same order')
+    }
+    
     out$sojourn <- out$stop-out$start
     out$t_weibull <- out$sojourn
     return(out)
