@@ -275,7 +275,7 @@ log_posterior <- function(params, dat) {
   if (model_spec$joint) {
       if (model_spec$lmm_correlated_random_effects) {
           ##   hyperparameters: mean vector
-          prs[5] <- dmvnorm(c(params[['B']]),rep(0,2),100^2*diag(2),log=T)
+          prs[5] <- mvtnorm::dmvnorm(c(params[['B']]),rep(0,2),100^2*diag(2),log=T)
           ##   hyperparameters: precision matrix
           rho <- 0
           s1 <- s2 <- 10
@@ -290,7 +290,7 @@ log_posterior <- function(params, dat) {
           b <- cbind(params[['u']],params[['d']])
           ##   correlated intercept-slope
           ##     changed on 08Jul2025 using fastmvn
-          ##prs1 <- apply(b,1,function(bi) {dmvnorm(c(bi),B,D,log=T)})  ## before 08Jul2025
+          ##prs1 <- apply(b,1,function(bi) {mvtnorm::dmvnorm(c(bi),B,D,log=T)})  ## before 08Jul2025
           prs1 <- dmvn(b,B,D,log=T)  ## much faster version
           prs2 <- 0
           if (!byperson) prs[9] <- sum(prs1 + prs2)
