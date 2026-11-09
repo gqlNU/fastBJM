@@ -124,7 +124,7 @@ fastBJM can be used to fit a multistate-only model with a piecewise constant mod
 To illustrate, the code below fits the six-states model for leukemia patients after bone marrow transplantation as described in [de Wreede et al. (2011)](https://www.jstatsoft.org/article/view/v038i07) using both `mstate` and `fastBJM`. For the `fastBJM` fit, the baseline transitions are time invariant and this is equivalent to having an exponential distribution in the `mstate` setting.
 
 <details>
-<summary> R code to fit the six-state model using `mstate` and `fastBJM`</summary>
+<summary> R code to fit the six-state model using mstate and fastBJM</summary>
 
 ```R
 
