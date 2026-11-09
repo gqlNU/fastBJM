@@ -117,7 +117,6 @@ sims.list <- mcmc_update(fitdata, inits, niters, model_spec, update_setting)
 </details>
 
 
-<!--
 ## Example 2: Fitting a multistate only model
 
 fastBJM can be used to fit a multistate-only model with a piecewise constant model on the transition intensities. This is done by not specifying a longitudinal variable in the model specification, namely, by setting `model_spec$which_longvar <- NULL`. Fixed effects can still be included on all (or some) of the transition intensities.
@@ -128,6 +127,12 @@ To illustrate, the code below fits the six-states model for leukemia patients af
 <summary> R code to fit the six-state model using mstate and fastBJM</summary>
 
 ```R
+
+#################################
+#################################
+##########   example 2
+#################################
+#################################
 library('mstate')
 library('fastBJM')
 library("flexsurv")
@@ -161,6 +166,24 @@ for (i in 1:n_trans){
 }
 jk <- unique(cbind(paste0(msebmt$from,msebmt$to),msebmt$trans))
 
+################################################
+##  == get data in the fastBJM format
+################################################
+msm <- msebmt[c('id','from','to','Tstart','Tstop','status','match')]
+msm$match <- as.numeric(msm$match)-1
+msm$age_entry <- 0
+names(msm)[which(names(msm)=='Tstart')] <- 'start'
+names(msm)[which(names(msm)=='Tstop')] <- 'stop'
+msm$start <- msm$start/365.25
+msm$stop <- msm$stop/365.25
+##  == longitudinal measurements are not modelled but still need to have something in its place
+long <- data.frame(id=unique(msm$id))
+long$y <- rnorm(length(long))
+
+long$mergeid <- long[['id']]
+long$age_entry <- 0
+msm$mergeid <- msm[['id']]
+dd <- list(msm=msm,long=long)
 
 ################################################################################
 ##   the code for fastBJM fit
@@ -171,10 +194,26 @@ jk <- unique(cbind(paste0(msebmt$from,msebmt$to),msebmt$trans))
 ats <- c('12','13','15','16','24','25','26','34','35','36','45','46')
 names(ats) <- ats
 model_spec <- list()
-model_spec$allowable_transitions <- ats
-model_spec$transitions_to_analyse <- ats
-## --- name of the longitudinal variable in the dataset 
+basRisk <- model_spec$basRisk <- 'exponentialsurv'
+
+model_spec$fitdata_type <- fitdata_type <- 'msm_only'
+model_spec$msm_only <- T
+model_spec$msm_by_country <- ''
+model_spec$msm_country_age <- FALSE
+model_spec$lmm_parts <- c('intercept','slope')
+model_spec$lmm_correlated_random_effects <- F
+model_spec$standardise_y <- F
+
+##   include the fixed effect of age at entry in the longitudinal submodel or not
+model_spec$update_beta_lmm <- update_beta_lmm <- FALSE
+
+##   person ID that links the event history data to the longitudinal data
+model_spec$PID <- 'id'
+##   the set of transitions to be included in the analysis
+model_spec$allowable_transitions <- model_spec$transitions_to_analyse <- ats
+## --- name of the longitudinal variable in the dataset
 model_spec$which_longvar <- NULL
+
 ## --- association structure:
 ##   aps <- c('a_1','a_2'): a quadratic function of the current value with the transition intensities
 ##   aps <- c('a_1')      : a linear function of the current value with the transition intensities
@@ -187,17 +226,13 @@ model_spec$a2p <- ats
 ##   X_spec[,2]: types of covariates (cat=binary/categorical and cnt=continuous)
 ##   set model_spec$X_spec <- NULL if no fixed effect included
 model_spec$X_spec <- matrix(c('match','cat'),byrow=T,ncol=2)
-## --- which transition intensities are specified as a function of the fixed effects
-##   e.g. x1=ats means x1 affects all permissible transitions and each transition has its own effect estimate
-##   e.g. x1=c('12','15') means x1 only affects the 12 and 15 transitions
-##   beta_by_transitions will be automatically set to NULL if model_spec$X_spec is NULL (i.e. no fixed effect)
-model_spec$beta_by_transitions <- list(match=model_spec$transitions_to_analyse)
+model_spec$beta_by_transitions <- list(match=ats)
+model_spec$beta_by_country <- list(match=ats)
+
 ## --- definition of the age intervals for the baseline intensities
 ##   the setting below corresponds to two age intervals, [50, 70) and [70,150]
 model_spec$age_range <- c(0,1500)
 model_spec$age_cuts <- NULL
-##   person ID that links the event history data to the longitudinal data
-model_spec$PID <- 'id'
 
 ## --- include transition specific IID random effects?
 model_spec$include_msm_random <- FALSE
@@ -208,18 +243,7 @@ model_spec$include_msm_random <- FALSE
 ##  == specify other specifications (using defaults)
 model_spec <- tidy_model_spec(model_spec)
 
-##  == get data in
-msm <- msebmt[c('id','from','to','Tstart','Tstop','status','match')]
-msm$match <- as.numeric(msm$match)-1
-msm$age_entry <- 0
-names(msm)[which(names(msm)=='Tstart')] <- 'start'
-names(msm)[which(names(msm)=='Tstop')] <- 'stop'
-msm$start <- msm$start/365.25
-msm$stop <- msm$stop/365.25
-##  == longitudinal measurements are not modelled but still need to have something in its place
-long <- data.frame(id=unique(msm$id))
-long$y <- rnorm(length(long))
-dd <- list(msm=msm,long=long)
+##  == format data
 fitdata <- prepare_fitdata(dd,model_spec)
 
 ##  == define updating scheme based on the model specification
@@ -265,7 +289,6 @@ for (which_jk in model_spec$transitions_to_analyse) {
 }
 
 ```
-</details>
 
 
 ## On data structure:
@@ -301,7 +324,6 @@ The longitudinal measurements for this person are stored under the column `y` in
 52005    4054  72 -1.0251801        64
 ```
 
--->
 
 <!--
 ## Example 3: A joint model with exchangeable random effects on each MSM transition <font color='orange'>(for illustration only)</font>
