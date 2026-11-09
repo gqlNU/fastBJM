@@ -250,7 +250,8 @@ log_posterior <- function(params, dat) {
   #   MSM + LMM
   #################################
   l1 <- ll_msm(params,dat,byperson)
-  l2 <- ll_lmm(params,dat,byperson)
+  l2 <- 0
+  if (model_spec$fitdata_type=='joint' | model_spec$fitdata_type=='lmm_only') l2 <- ll_lmm(params,dat,byperson)
   if (model_spec$fitdata_type=='joint') ll <- l1 + l2
   if (model_spec$fitdata_type=='msm_only') ll <- l1
   if (model_spec$fitdata_type=='lmm_only') ll <- l2
@@ -272,6 +273,7 @@ log_posterior <- function(params, dat) {
       prs[4] <- prs[4] + dgamma(1/sigma^2,shape=0.01,rate=0.01,log=T)
     }
   }
+  prs1 <- prs2 <- 0
   if (model_spec$joint) {
       if (model_spec$lmm_correlated_random_effects) {
           ##   hyperparameters: mean vector
