@@ -84,7 +84,7 @@ model_spec$beta_by_transitions <- list(x1=ats,
 ## --- definition of the age intervals for the baseline intensities
 ##   the setting below corresponds to two age intervals, [50, 70) and [70,150]
 model_spec$age_range <- c(50,150)
-model_spec$age_cuts <- NULL#c(70)
+model_spec$age_cuts <- c(70)
 
 ## --- include transition specific IID random effects?
 model_spec$include_msm_random <- FALSE
