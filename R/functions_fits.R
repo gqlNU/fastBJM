@@ -967,7 +967,7 @@ sample_lmm_precision_matrix <- function(params, dat) {
 
   S <- MASS::ginv(t(db)%*%db + inv_V)
   nu <- npids + nu0
-  x <- rwishart(nu, round(S,digits=11))
+  x <- LaplacesDemon::rwishart(nu, round(S,digits=11))
   out <- list(roundS=round(S,digits=10),S=S,nu=nu,x=x)
   return(out)
 }
