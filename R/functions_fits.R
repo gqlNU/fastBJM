@@ -26,11 +26,11 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
       if (update_setting$update_h0) {
           data$model_spec$byperson <- F
           pp <- 'l'
-          x <- update_baseline(current_pars, fitdata, prior=c(0.01,0.01))
+          x <- update_baseline(current_pars, data, prior=c(0.01,0.01))
           nms <- names(x)
           current_pars[[pp]][nms] <- x[nms]
           sims.list[[pp]] <- rbind(sims.list[[pp]],current_pars[[pp]])
-          current_jpd <- log_posterior(current_pars, fitdata)
+          current_jpd <- log_posterior(current_pars, data)
       }
 
       ##-##################################################
@@ -42,7 +42,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
           for (which_jkg in paste0(ats,'g1')) {
               propose_pars <- current_pars
               propose_pars[[pp]][which_jkg] <- rnorm(1,current_pars[[pp]][which_jkg],0.05)
-              propose_jpd <- log_posterior(propose_pars,fitdata)
+              propose_jpd <- log_posterior(propose_pars,data)
               mh_factor <- dnorm(current_pars[[pp]][which_jkg],propose_pars[[pp]][which_jkg],0.05,log=T) - 
                            dnorm(propose_pars[[pp]][which_jkg],current_pars[[pp]][which_jkg],0.05,log=T)
               d <- propose_jpd - current_jpd + mh_factor
@@ -189,10 +189,10 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
           data$model_spec$byperson <- F
           pp <- 'beta_lmm'
           #ss <- sample_beta_lmm(current_pars,fitdata)$x
-          ss <- sample_eta(current_pars,fitdata)$x
+          ss <- sample_eta(current_pars,data)$x
           current_pars[[pp]] <- ss
           sims.list[[pp]] <- c(sims.list[[pp]],current_pars[[pp]])
-          current_jpd <- log_posterior(current_pars,fitdata)
+          current_jpd <- log_posterior(current_pars,data)
       }
       
       ##-##################################################
@@ -225,7 +225,7 @@ mcmc_update <- function(data, inits, niters, model_spec, update_setting) {
           tmp[1,,] <- ss
           sims.list[[pp]] <- abind::abind(sims.list[[pp]],tmp,along=1)
           ##   calculate the joint posterior at the updated values
-          current_jpd <- log_posterior(current_pars,fitdata)
+          current_jpd <- log_posterior(current_pars,data)
       }
       ##   update progress bar
       if (iter%%(niters/pb_freq)==0) setTxtProgressBar(pb, iter)
