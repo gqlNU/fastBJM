@@ -8,7 +8,7 @@ The preprint that details the algorithm will be made avaiable on [Research Squar
 ##  Installing the package
 
 ```R
-devtools::install_github("gqlNU/fastBJM")
+pak::pak("gqlNU/fastBJM")
 ```
 
 ## Example 1: Fitting a joint model
